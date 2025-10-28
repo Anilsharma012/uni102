@@ -37,6 +37,37 @@ const CheckoutPayment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [copiedUpiId, setCopiedUpiId] = useState(false);
 
+  const buildUpiUri = (scheme?: string) => {
+    const pa = encodeURIComponent(paymentSettings?.upiId || '');
+    if (!pa) return '';
+    const pn = encodeURIComponent(paymentSettings?.beneficiaryName || '');
+    const am = encodeURIComponent((total || 0).toFixed(2));
+    const tn = encodeURIComponent('Order payment at UNI10');
+    const base = scheme ? scheme : 'upi://pay';
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}pa=${pa}&pn=${pn}&am=${am}&cu=INR&tn=${tn}`;
+  };
+
+  const openUpiApp = (scheme?: string) => {
+    const uri = buildUpiUri(scheme);
+    if (!uri) {
+      toast({ title: 'UPI not configured', description: 'UPI ID is missing', variant: 'destructive' });
+      return;
+    }
+    const startVisible = document.visibilityState;
+    try {
+      window.location.href = uri;
+    } catch (_) {}
+    if (scheme) {
+      setTimeout(() => {
+        if (document.visibilityState === startVisible) {
+          const fallback = buildUpiUri('upi://pay');
+          try { window.location.href = fallback; } catch (_) {}
+        }
+      }, 1200);
+    }
+  };
+
   useEffect(() => {
     fetchPaymentSettings();
     fetchRazorpaySettings();
