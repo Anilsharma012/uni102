@@ -73,7 +73,7 @@ router.post('/create', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Admin: PATCH /api/admin/pages/:id - Update a page
-router.patch('/admin/:id', requireAuth, requireAdmin, async (req, res) => {
+router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, slug, content, status } = req.body || {};
