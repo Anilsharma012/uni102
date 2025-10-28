@@ -527,6 +527,13 @@ const Admin = () => {
   const [orderInvoices, setOrderInvoices] = useState<Record<string, string | null>>({}); // orderId -> invoiceNo
   const [generatingInvoice, setGeneratingInvoice] = useState<Record<string, boolean>>({}); // orderId -> bool
 
+  // Coupon state
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [couponDialogOpen, setCouponDialogOpen] = useState(false);
+  const [couponForm, setCouponForm] = useState({ code: '', discount: 10, expiryDate: '' });
+  const [couponSaving, setCouponSaving] = useState(false);
+
   const totalSalesFormatted = useMemo(
     () => `₹${stats.totalSales.toLocaleString('en-IN')}`,
     [stats.totalSales],
