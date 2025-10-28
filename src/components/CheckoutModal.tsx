@@ -199,11 +199,34 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
         image: i.image,
         size: i.meta?.size || undefined,
       })),
+      subtotal,
+      discountAmount,
       total,
+      coupon: appliedCoupon ? { code: appliedCoupon.code, discount: appliedCoupon.discount } : undefined,
       status: "pending",
       upi: payment === "UPI" ? { payerName: upiPayerName, txnId: upiTxnId || undefined } : undefined,
       customer: { name, phone, address, city, state: stateName, pincode },
     };
+
+    // Apply coupon if present
+    if (appliedCoupon) {
+      try {
+        const token = localStorage.getItem("token");
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        await fetch("/api/coupons/apply", {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ code: appliedCoupon.code }),
+        });
+      } catch (err) {
+        console.warn("Failed to mark coupon as used:", err);
+      }
+    }
 
     const res = await placeOrder(payload);
     setLoading(false);
