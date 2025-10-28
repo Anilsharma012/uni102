@@ -133,6 +133,28 @@ router.patch('/admin/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Public: GET /api/coupons/active - Get all active, non-expired coupons
+router.get('/active', async (req, res) => {
+  try {
+    const now = new Date();
+    const coupons = await Coupon.find({
+      isActive: true,
+      expiryDate: { $gt: now },
+    }).select('code discount expiryDate').lean();
+
+    const normalized = (coupons || []).map((c) => ({
+      code: String(c.code || ''),
+      discount: Number(c.discount || 0),
+      expiryDate: c.expiryDate ? new Date(c.expiryDate).toISOString().split('T')[0] : '',
+    }));
+
+    return res.json({ ok: true, data: normalized });
+  } catch (e) {
+    console.error('Failed to fetch active coupons:', e);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
 // User: POST /api/coupons/validate - Validate and apply coupon
 router.post('/validate', requireAuth, async (req, res) => {
   try {
