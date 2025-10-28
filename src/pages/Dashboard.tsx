@@ -481,6 +481,24 @@ export default function Dashboard() {
       </main>
       <Footer />
       <CheckoutModal open={openCheckout} setOpen={setOpenCheckout} />
+      <ReturnRequestModal
+        open={returnModalOpen}
+        onOpenChange={setReturnModalOpen}
+        order={selectedOrderForReturn}
+        onSuccess={() => {
+          // Refresh orders after successful return request
+          setLoadingOrders(true);
+          (async () => {
+            try {
+              const res = (await api("/api/orders/mine")) as { ok: boolean; json: OrdersResponse } & any;
+              if (res.ok && res.json?.ok && Array.isArray(res.json.data)) {
+                setOrders(res.json.data as Order[]);
+              }
+            } catch {}
+            setLoadingOrders(false);
+          })();
+        }}
+      />
     </div>
   );
 }
