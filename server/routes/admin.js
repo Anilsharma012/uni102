@@ -6,6 +6,8 @@ const Invoice = require('../models/Invoice');
 const SiteSetting = require('../models/SiteSetting');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const nodemailer = require('nodemailer');
+const Page = require('../models/Page');
+const slugify = require('slugify');
 
 // GET /api/admin/stats/overview?range=7d|30d|90d
 router.get('/stats/overview', requireAuth, requireAdmin, async (req, res) => {
