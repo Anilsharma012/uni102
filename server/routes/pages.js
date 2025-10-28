@@ -4,8 +4,8 @@ const Page = require('../models/Page');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const slugify = require('slugify');
 
-// Admin: GET /api/admin/pages - List all pages
-router.get('/admin/list', requireAuth, requireAdmin, async (req, res) => {
+// Admin: GET /api/admin/pages/list - List all pages
+router.get('/list', requireAuth, requireAdmin, async (req, res) => {
   try {
     const pages = await Page.find().sort({ updatedAt: -1 }).lean();
     const normalized = (pages || []).map((p) => ({
