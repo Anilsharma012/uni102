@@ -70,6 +70,14 @@ type PaymentSettingsForm = {
   instructions: string;
 };
 
+type RazorpaySettingsForm = {
+  keyId: string;
+  keySecret: string;
+  webhookSecret: string;
+  currency: string;
+  isActive: boolean;
+};
+
 type ShiprocketSettingsForm = {
   enabled: boolean;
   email: string;
@@ -83,6 +91,7 @@ type IntegrationSettings = {
   id?: string;
   domain: string;
   payment: PaymentSettingsForm;
+  razorpay: RazorpaySettingsForm;
   shipping: { shiprocket: ShiprocketSettingsForm };
 };
 
@@ -100,6 +109,7 @@ const NAV_ITEMS = [
     { id: 'support', label: 'Support Center', icon: MessageCircle },
     { id: 'contact', label: 'Contact Settings', icon: MessageCircle },
     { id: 'payment', label: 'Payment Settings', icon: CreditCard },
+    { id: 'razorpaySettings', label: 'Razorpay Settings', icon: CreditCard },
     { id: 'shiprocket', label: 'Shiprocket Settings', icon: Truck },
 ] as const;
 
@@ -109,6 +119,16 @@ function createDefaultPaymentSettings(): PaymentSettingsForm {
     upiId: '',
     beneficiaryName: '',
     instructions: 'Scan QR and pay. Enter UTR/Txn ID on next step.',
+  };
+}
+
+function createDefaultRazorpaySettings(): RazorpaySettingsForm {
+  return {
+    keyId: '',
+    keySecret: '',
+    webhookSecret: '',
+    currency: 'INR',
+    isActive: false,
   };
 }
 
@@ -128,6 +148,7 @@ function createDefaultSettings(): IntegrationSettings {
     id: undefined,
     domain: 'www.uni10.in',
     payment: createDefaultPaymentSettings(),
+    razorpay: createDefaultRazorpaySettings(),
     shipping: {
       shiprocket: createDefaultShiprocketSettings(),
     },
@@ -157,6 +178,28 @@ function normalizeSettings(raw: any): IntegrationSettings {
         typeof raw?.payment?.instructions === 'string' && raw.payment.instructions.trim()
           ? raw.payment.instructions.trim()
           : defaults.payment.instructions,
+    },
+    razorpay: {
+      keyId:
+        typeof raw?.razorpay?.keyId === 'string' && raw.razorpay.keyId.trim()
+          ? raw.razorpay.keyId.trim()
+          : defaults.razorpay.keyId,
+      keySecret:
+        typeof raw?.razorpay?.keySecret === 'string' && raw.razorpay.keySecret.trim()
+          ? raw.razorpay.keySecret.trim()
+          : defaults.razorpay.keySecret,
+      webhookSecret:
+        typeof raw?.razorpay?.webhookSecret === 'string' && raw.razorpay.webhookSecret.trim()
+          ? raw.razorpay.webhookSecret.trim()
+          : defaults.razorpay.webhookSecret,
+      currency:
+        typeof raw?.razorpay?.currency === 'string' && raw.razorpay.currency.trim()
+          ? raw.razorpay.currency.trim()
+          : defaults.razorpay.currency,
+      isActive:
+        typeof raw?.razorpay?.isActive === 'boolean'
+          ? raw.razorpay.isActive
+          : defaults.razorpay.isActive,
     },
     shipping: {
       shiprocket: {
@@ -489,8 +532,11 @@ const Admin = () => {
   const [settings, setSettings] = useState<IntegrationSettings>(createDefaultSettings);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [paymentForm, setPaymentForm] = useState<PaymentSettingsForm>(createDefaultPaymentSettings);
+  const [razorpayForm, setRazorpayForm] = useState<RazorpaySettingsForm>(createDefaultRazorpaySettings);
   const [shiprocketForm, setShiprocketForm] = useState<ShiprocketSettingsForm>(createDefaultShiprocketSettings);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [savingRazorpay, setSavingRazorpay] = useState(false);
+  const [testingRazorpay, setTestingRazorpay] = useState(false);
   const [savingShiprocket, setSavingShiprocket] = useState(false);
   const [uploadingQrCode, setUploadingQrCode] = useState(false);
 
@@ -578,6 +624,7 @@ const Admin = () => {
 
   useEffect(() => {
     setPaymentForm({ ...settings.payment });
+    setRazorpayForm({ ...settings.razorpay });
     setShiprocketForm({ ...settings.shipping.shiprocket });
   }, [settings]);
 
@@ -1458,6 +1505,66 @@ const handleProductSubmit = async (e: React.FormEvent) => {
     } finally {
       setSavingPayment(false);
     }
+  };
+
+  const handleRazorpaySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!razorpayForm.keyId.trim()) {
+      toast.error('Razorpay Key ID is required');
+      return;
+    }
+    if (!razorpayForm.keySecret.trim()) {
+      toast.error('Razorpay Key Secret is required');
+      return;
+    }
+
+    try {
+      setSavingRazorpay(true);
+      const updated = await apiFetch<IntegrationSettings>(ENDPOINTS.settings, {
+        method: 'PUT',
+        body: JSON.stringify({ razorpay: razorpayForm }),
+      });
+      setSettings(normalizeSettings(updated));
+      toast.success('Razorpay settings saved successfully');
+    } catch (error: any) {
+      const errorMsg = error?.message ?? 'Unknown error';
+      console.error('Razorpay settings save error:', error);
+      toast.error(`Failed to save Razorpay settings: ${errorMsg}`);
+    } finally {
+      setSavingRazorpay(false);
+    }
+  };
+
+  const handleRazorpayTest = async () => {
+    if (!razorpayForm.keyId.trim()) {
+      toast.error('Razorpay Key ID is required to test connection');
+      return;
+    }
+    if (!razorpayForm.keySecret.trim()) {
+      toast.error('Razorpay Key Secret is required to test connection');
+      return;
+    }
+
+    try {
+      setTestingRazorpay(true);
+      const result = await apiFetch<{ message: string }>('/api/settings/razorpay/test', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      toast.success(result.message || 'Connection test successful');
+    } catch (error: any) {
+      const errorMsg = error?.message ?? 'Unknown error';
+      console.error('Razorpay test error:', error);
+      toast.error(`Connection test failed: ${errorMsg}`);
+    } finally {
+      setTestingRazorpay(false);
+    }
+  };
+
+  const handleRazorpayReset = () => {
+    setRazorpayForm(createDefaultRazorpaySettings());
+    toast.success('Form reset to defaults');
   };
 
   const handleShiprocketSubmit = async (e: React.FormEvent) => {
@@ -2763,6 +2870,143 @@ const handleProductSubmit = async (e: React.FormEvent) => {
     </div>
   );
 
+  const renderRazorpaySettings = () => (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h2 className="text-2xl font-bold">Razorpay Settings</h2>
+        <p className="text-sm text-muted-foreground">
+          Configure your Razorpay payment gateway credentials. Keys are stored securely on the backend and used for payment processing.
+        </p>
+      </div>
+
+      <Card className="bg-white rounded-xl shadow-sm p-5">
+        <CardHeader>
+          <CardTitle>Razorpay Configuration</CardTitle>
+          <CardDescription>Add your Razorpay API credentials to enable online payments</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleRazorpaySubmit} className="space-y-5">
+            <div>
+              <Label htmlFor="keyId">Razorpay Key ID</Label>
+              <Input
+                id="keyId"
+                placeholder="e.g., rzp_live_xxxxxxxxxxxxx"
+                value={razorpayForm.keyId}
+                onChange={(e) => setRazorpayForm((prev) => ({ ...prev, keyId: e.target.value }))}
+                disabled={settingsLoading || savingRazorpay || testingRazorpay}
+              />
+              <p className="text-sm text-muted-foreground mt-1">Your Razorpay public Key ID (from Settings → API Keys)</p>
+            </div>
+
+            <div>
+              <Label htmlFor="keySecret">Razorpay Key Secret</Label>
+              <Input
+                id="keySecret"
+                type="password"
+                placeholder="Enter your key secret"
+                value={razorpayForm.keySecret}
+                onChange={(e) => setRazorpayForm((prev) => ({ ...prev, keySecret: e.target.value }))}
+                disabled={settingsLoading || savingRazorpay || testingRazorpay}
+              />
+              <p className="text-sm text-muted-foreground mt-1">Your Razorpay secret key (keep this confidential)</p>
+            </div>
+
+            <div>
+              <Label htmlFor="webhookSecret">Webhook Secret (Optional)</Label>
+              <Input
+                id="webhookSecret"
+                type="password"
+                placeholder="Enter webhook secret if configured"
+                value={razorpayForm.webhookSecret}
+                onChange={(e) => setRazorpayForm((prev) => ({ ...prev, webhookSecret: e.target.value }))}
+                disabled={settingsLoading || savingRazorpay || testingRazorpay}
+              />
+              <p className="text-sm text-muted-foreground mt-1">Optional: For webhook signature verification</p>
+            </div>
+
+            <div>
+              <Label htmlFor="currency">Currency</Label>
+              <Select
+                value={razorpayForm.currency}
+                onValueChange={(value) => setRazorpayForm((prev) => ({ ...prev, currency: value }))}
+                disabled={settingsLoading || savingRazorpay || testingRazorpay}
+              >
+                <SelectTrigger id="currency">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INR">INR (Indian Rupee)</SelectItem>
+                  <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                  <SelectItem value="EUR">EUR (Euro)</SelectItem>
+                  <SelectItem value="GBP">GBP (British Pound)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground mt-1">Currency for transactions (default: INR)</p>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="isActive" className="font-medium">
+                  Enable Razorpay
+                </Label>
+                <p className="text-sm text-muted-foreground">Activate to use Razorpay for checkout</p>
+              </div>
+              <Switch
+                id="isActive"
+                checked={razorpayForm.isActive}
+                onCheckedChange={(checked) => setRazorpayForm((prev) => ({ ...prev, isActive: checked }))}
+                disabled={settingsLoading || savingRazorpay || testingRazorpay}
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button
+                type="submit"
+                disabled={savingRazorpay || settingsLoading || testingRazorpay}
+                className="flex-1"
+              >
+                {savingRazorpay && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Settings
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRazorpayReset}
+                disabled={savingRazorpay || settingsLoading || testingRazorpay}
+                className="flex-1"
+              >
+                Reset
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleRazorpayTest}
+                disabled={savingRazorpay || settingsLoading || testingRazorpay || !razorpayForm.keyId.trim() || !razorpayForm.keySecret.trim()}
+                className="flex-1"
+              >
+                {testingRazorpay && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Test Connection
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-blue-900">Getting Your Credentials</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-blue-800 space-y-2">
+          <p>1. Log in to your Razorpay Dashboard</p>
+          <p>2. Go to Settings → API Keys</p>
+          <p>3. Copy your Key ID and Key Secret</p>
+          <p>4. Paste them above and click "Test Connection"</p>
+          <p>5. Once validated, click "Save Settings"</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderShiprocketSettings = () => (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -3283,6 +3527,8 @@ const handleProductSubmit = async (e: React.FormEvent) => {
         return renderContactSettings();
       case 'payment':
         return renderPaymentSettings();
+      case 'razorpaySettings':
+        return renderRazorpaySettings();
       case 'shiprocket':
         return renderShiprocketSettings();
       case 'home':

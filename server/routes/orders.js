@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const User = require('../models/User');
 const { authOptional, requireAuth, requireAdmin } = require('../middleware/auth');
+const { sendOrderConfirmationEmail, sendStatusUpdateEmail, sendReturnApprovalEmail, sendCustomEmail } = require('../utils/emailService');
 
 const ALLOWED_STATUSES = ['pending', 'paid', 'shipped', 'delivered', 'cancelled'];
 
@@ -222,6 +224,144 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
   } catch (e) {
     console.error('Cancel order error:', e);
     return res.status(500).json({ ok: false, message: 'Failed to cancel order' });
+  }
+});
+
+// Send order confirmation email
+router.post('/:id/email', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id).populate('userId');
+
+    if (!order) {
+      return res.status(404).json({ ok: false, message: 'Order not found' });
+    }
+
+    // Check authorization
+    if (String(order.userId._id) !== String(req.user._id) && req.user.role !== 'admin') {
+      return res.status(403).json({ ok: false, message: 'Forbidden' });
+    }
+
+    const user = order.userId;
+    const result = await sendOrderConfirmationEmail(order, user);
+
+    if (result.ok) {
+      return res.json({ ok: true, message: 'Confirmation email sent', messageId: result.messageId });
+    } else {
+      return res.status(500).json({ ok: false, message: result.error });
+    }
+  } catch (e) {
+    console.error('Send email error:', e);
+    return res.status(500).json({ ok: false, message: 'Failed to send email' });
+  }
+});
+
+// Request return
+router.post('/:id/request-return', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ ok: false, message: 'Return reason is required' });
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ ok: false, message: 'Order not found' });
+    }
+
+    // Check authorization
+    if (String(order.userId) !== String(req.user._id)) {
+      return res.status(403).json({ ok: false, message: 'Forbidden' });
+    }
+
+    // Can only request return if order is delivered
+    if (order.status !== 'delivered') {
+      return res.status(400).json({ ok: false, message: 'Return can only be requested for delivered orders' });
+    }
+
+    order.returnReason = reason.trim();
+    order.returnStatus = 'Pending';
+    await order.save();
+
+    return res.json({ ok: true, data: order, message: 'Return request submitted' });
+  } catch (e) {
+    console.error('Request return error:', e);
+    return res.status(500).json({ ok: false, message: 'Failed to submit return request' });
+  }
+});
+
+// Admin: Update order (status, tracking number, return approval)
+router.put('/:id/admin-update', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, trackingNumber, returnStatus } = req.body || {};
+
+    const order = await Order.findById(id).populate('userId');
+    if (!order) {
+      return res.status(404).json({ ok: false, message: 'Order not found' });
+    }
+
+    const previousStatus = order.status;
+
+    // Update status if provided
+    if (status && ALLOWED_STATUSES.includes(status)) {
+      order.status = status;
+    }
+
+    // Update tracking number if provided
+    if (trackingNumber) {
+      order.trackingNumber = trackingNumber.trim();
+    }
+
+    // Update return status if provided
+    if (returnStatus && ['None', 'Pending', 'Approved', 'Rejected'].includes(returnStatus)) {
+      order.returnStatus = returnStatus;
+    }
+
+    await order.save();
+
+    // Send email on status change
+    if (status && status !== previousStatus && order.userId && order.userId.email) {
+      const user = order.userId;
+      if (status === 'shipped' || status === 'delivered') {
+        await sendStatusUpdateEmail(order, user, status);
+      }
+    }
+
+    // Send email on return approval
+    if (returnStatus === 'Approved' && order.returnStatus === 'Approved' && order.userId && order.userId.email) {
+      const user = order.userId;
+      await sendReturnApprovalEmail(order, user);
+    }
+
+    return res.json({ ok: true, data: order, message: 'Order updated successfully' });
+  } catch (e) {
+    console.error('Admin update order error:', e);
+    return res.status(500).json({ ok: false, message: 'Failed to update order' });
+  }
+});
+
+// Send custom email
+router.post('/send-mail', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { to, subject, html } = req.body || {};
+
+    if (!to || !subject || !html) {
+      return res.status(400).json({ ok: false, message: 'Missing required fields: to, subject, html' });
+    }
+
+    const result = await sendCustomEmail(to, subject, html);
+
+    if (result.ok) {
+      return res.json({ ok: true, message: 'Email sent', messageId: result.messageId });
+    } else {
+      return res.status(500).json({ ok: false, message: result.error });
+    }
+  } catch (e) {
+    console.error('Send mail error:', e);
+    return res.status(500).json({ ok: false, message: 'Failed to send email' });
   }
 });
 

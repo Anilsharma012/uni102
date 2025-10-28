@@ -18,6 +18,12 @@ type PaymentSettings = {
   instructions: string;
 };
 
+type RazorpaySettings = {
+  keyId: string;
+  currency: string;
+  isActive: boolean;
+};
+
 const CheckoutPayment = () => {
   const { items, subtotal, discountAmount, total, appliedCoupon, clearCart } = useCart();
   const { toast } = useToast();
@@ -25,6 +31,7 @@ const CheckoutPayment = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('razorpay');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
+  const [razorpaySettings, setRazorpaySettings] = useState<RazorpaySettings | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [upiTransactionId, setUpiTransactionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +39,7 @@ const CheckoutPayment = () => {
 
   useEffect(() => {
     fetchPaymentSettings();
+    fetchRazorpaySettings();
   }, []);
 
   const fetchPaymentSettings = async () => {
@@ -57,8 +65,28 @@ const CheckoutPayment = () => {
     }
   };
 
+  const fetchRazorpaySettings = async () => {
+    try {
+      const { ok, json } = await api('/api/settings/razorpay/public');
+      if (ok && json?.data) {
+        const r = json.data as any;
+        setRazorpaySettings({
+          keyId: r.keyId || '',
+          currency: r.currency || 'INR',
+          isActive: r.isActive || false,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch Razorpay settings:', error);
+    }
+  };
+
   const handleRazorpayPayment = async () => {
     try {
+      if (!razorpaySettings?.keyId) {
+        throw new Error('Razorpay is not configured. Please contact support.');
+      }
+
       setSubmitting(true);
 
       const response = await fetch('/api/payment/create-order', {
@@ -70,7 +98,7 @@ const CheckoutPayment = () => {
         credentials: 'include',
         body: JSON.stringify({
           amount: total * 100,
-          currency: 'INR',
+          currency: razorpaySettings.currency || 'INR',
           items,
           appliedCoupon,
         }),
@@ -88,9 +116,9 @@ const CheckoutPayment = () => {
       }
 
       const options = {
-        key: (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || 'rzp_live_key',
+        key: razorpaySettings.keyId,
         amount: total * 100,
-        currency: 'INR',
+        currency: razorpaySettings.currency || 'INR',
         name: 'UNI10',
         description: `Order for ₹${total}`,
         order_id: orderId,
@@ -268,23 +296,26 @@ const CheckoutPayment = () => {
           {/* Payment Options */}
           <div className="lg:col-span-2 space-y-6">
             {/* Razorpay Option */}
-            <Card className="p-6 rounded-xl shadow-sm border border-gray-200">
+            <Card className={`p-6 rounded-xl shadow-sm border ${razorpaySettings?.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
               <div className="flex items-center gap-4 mb-6">
                 <div
-                  className="w-5 h-5 rounded-full border-2 cursor-pointer"
-                  onClick={() => setPaymentMethod('razorpay')}
+                  className={`w-5 h-5 rounded-full border-2 ${razorpaySettings?.isActive ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                  onClick={() => razorpaySettings?.isActive && setPaymentMethod('razorpay')}
                   style={{
-                    borderColor: paymentMethod === 'razorpay' ? '#3b82f6' : '#d1d5db',
-                    backgroundColor: paymentMethod === 'razorpay' ? '#3b82f6' : 'transparent',
+                    borderColor: paymentMethod === 'razorpay' && razorpaySettings?.isActive ? '#3b82f6' : '#d1d5db',
+                    backgroundColor: paymentMethod === 'razorpay' && razorpaySettings?.isActive ? '#3b82f6' : 'transparent',
                   }}
                 />
                 <div>
                   <h3 className="font-semibold text-lg">Pay with Razorpay</h3>
                   <p className="text-sm text-muted-foreground">Quick and secure payment</p>
+                  {!razorpaySettings?.isActive && (
+                    <p className="text-xs text-destructive mt-1">Currently unavailable</p>
+                  )}
                 </div>
               </div>
 
-              {paymentMethod === 'razorpay' && (
+              {paymentMethod === 'razorpay' && razorpaySettings?.isActive && (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
                     Click the button below to complete your payment securely using Razorpay.
@@ -305,6 +336,9 @@ const CheckoutPayment = () => {
                     )}
                   </Button>
                 </div>
+              )}
+              {!razorpaySettings?.isActive && (
+                <p className="text-sm text-muted-foreground">Razorpay payment is currently not available. Please use UPI or other available methods.</p>
               )}
             </Card>
 
