@@ -156,6 +156,37 @@ export default function Dashboard() {
     toast({ title: "Added to cart", description: `Reordered ${order.items.length} item(s)` });
   };
 
+  const isDeliveredWithin7Days = (createdAt: string): boolean => {
+    const orderDate = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - orderDate.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return diffDays <= 7;
+  };
+
+  const downloadInvoice = async (orderId: string) => {
+    try {
+      const response = await api(`/api/orders/${orderId}/invoice`, {
+        method: 'GET',
+      });
+      if (response.ok && response.json?.ok && response.json?.data?.pdfUrl) {
+        // Download the PDF
+        const link = document.createElement('a');
+        link.href = response.json.data.pdfUrl;
+        link.download = `invoice-${orderId}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: "Success", description: "Invoice downloaded successfully" });
+      } else {
+        toast({ title: "Error", description: "Failed to download invoice", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Download invoice error:', error);
+      toast({ title: "Error", description: "Failed to download invoice", variant: "destructive" });
+    }
+  };
+
   const statusBadge = (s: string) => {
     const base = "px-2 py-0.5 rounded text-xs font-medium capitalize";
     const map: Record<string, string> = {
