@@ -3527,6 +3527,8 @@ const handleProductSubmit = async (e: React.FormEvent) => {
         return renderContactSettings();
       case 'payment':
         return renderPaymentSettings();
+      case 'razorpaySettings':
+        return renderRazorpaySettings();
       case 'shiprocket':
         return renderShiprocketSettings();
       case 'home':
