@@ -83,6 +83,10 @@ const CheckoutPayment = () => {
 
   const handleRazorpayPayment = async () => {
     try {
+      if (!razorpaySettings?.keyId) {
+        throw new Error('Razorpay is not configured. Please contact support.');
+      }
+
       setSubmitting(true);
 
       const response = await fetch('/api/payment/create-order', {
@@ -94,7 +98,7 @@ const CheckoutPayment = () => {
         credentials: 'include',
         body: JSON.stringify({
           amount: total * 100,
-          currency: 'INR',
+          currency: razorpaySettings.currency || 'INR',
           items,
           appliedCoupon,
         }),
@@ -112,9 +116,9 @@ const CheckoutPayment = () => {
       }
 
       const options = {
-        key: (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || 'rzp_live_key',
+        key: razorpaySettings.keyId,
         amount: total * 100,
-        currency: 'INR',
+        currency: razorpaySettings.currency || 'INR',
         name: 'UNI10',
         description: `Order for ₹${total}`,
         order_id: orderId,
