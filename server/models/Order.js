@@ -20,7 +20,7 @@ const OrderSchema = new mongoose.Schema(
     city: { type: String, default: '' },
     state: { type: String, default: '' },
     pincode: { type: String, default: '' },
-    paymentMethod: { type: String, enum: ['COD', 'UPI'], default: 'COD' },
+    paymentMethod: { type: String, enum: ['COD', 'UPI', 'Razorpay'], default: 'COD' },
     items: { type: [OrderItemSchema], default: [] },
     subtotal: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
@@ -33,6 +33,9 @@ const OrderSchema = new mongoose.Schema(
       payerName: { type: String },
       txnId: { type: String },
     },
+    trackingNumber: { type: String, default: '' },
+    returnReason: { type: String, default: '' },
+    returnStatus: { type: String, enum: ['None', 'Pending', 'Approved', 'Rejected'], default: 'None' },
   },
   { timestamps: true },
 );
