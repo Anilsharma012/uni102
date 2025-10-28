@@ -9,14 +9,24 @@ export type CartItem = {
   meta?: Record<string, any>;
 };
 
+export type AppliedCoupon = {
+  code: string;
+  discount: number;
+};
+
 type CartContextType = {
   items: CartItem[];
   count: number;
+  subtotal: number;
+  discountAmount: number;
   total: number;
+  appliedCoupon: AppliedCoupon | null;
   addToCart: (item: Omit<CartItem, "qty">, qty?: number) => void;
   updateQty: (id: string, qty: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
+  applyCoupon: (coupon: AppliedCoupon) => void;
+  removeCoupon: () => void;
   placeOrder: (payload: any) => Promise<{ ok: boolean; data?: any; error?: any }>;
 };
 
@@ -37,6 +47,7 @@ function readStorage(): CartItem[] {
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => (typeof window !== "undefined" ? readStorage() : []));
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
 
   useEffect(() => {
     try {
@@ -67,10 +78,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setItems((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => {
+    setItems([]);
+    setAppliedCoupon(null);
+  };
+
+  const applyCoupon = (coupon: AppliedCoupon) => {
+    setAppliedCoupon(coupon);
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+  };
 
   const count = useMemo(() => items.reduce((s, it) => s + it.qty, 0), [items]);
-  const total = useMemo(() => items.reduce((s, it) => s + it.qty * Number(it.price || 0), 0), [items]);
+  const subtotal = useMemo(() => items.reduce((s, it) => s + it.qty * Number(it.price || 0), 0), [items]);
+  const discountAmount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    return Math.round((subtotal * appliedCoupon.discount) / 100);
+  }, [subtotal, appliedCoupon]);
+  const total = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
 
   const placeOrder = async (payload: any) => {
     try {
@@ -108,7 +135,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <CartContext.Provider value={{ items, addToCart, updateQty, removeItem, clearCart, count, total, placeOrder }}>
+    <CartContext.Provider value={{ items, addToCart, updateQty, removeItem, clearCart, count, subtotal, discountAmount, total, appliedCoupon, applyCoupon, removeCoupon, placeOrder }}>
       {children}
     </CartContext.Provider>
   );
