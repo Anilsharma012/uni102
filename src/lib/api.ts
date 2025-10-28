@@ -125,6 +125,9 @@ export async function api(path: string, options: RequestInit = {}) {
     if (p.includes('/api/admin/pages')) {
       return { ok: true, status: 200, json: { ok: true, data: [] } };
     }
+    if (p.includes('/api/settings/razorpay')) {
+      return { ok: true, status: 200, json: { ok: true, data: { keyId: '', currency: 'INR', isActive: false } } };
+    }
 
     return { ok: false, status: 0, error: errorMsg };
   }
