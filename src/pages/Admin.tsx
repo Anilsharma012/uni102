@@ -91,6 +91,7 @@ const NAV_ITEMS = [
     { id: 'products', label: 'Products', icon: Package },
     { id: 'categories', label: 'Categories', icon: Tags },
     { id: 'coupons', label: 'Coupon Management', icon: Percent },
+    { id: 'pages', label: 'Pages', icon: LayoutDashboard },
     { id: 'orders', label: 'Orders', icon: Receipt },
     { id: 'users', label: 'Users', icon: Users2 },
     { id: 'reviews', label: 'User Reviews', icon: Star },
