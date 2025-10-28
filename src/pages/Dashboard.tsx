@@ -18,8 +18,10 @@ export type Order = {
   payment?: string;
   paymentMethod?: string;
   upi?: { payerName?: string; txnId?: string };
-  status: "pending" | "paid" | "shipped" | "delivered" | "cancelled" | string;
+  status: "pending" | "paid" | "shipped" | "delivered" | "returned" | "cancelled" | string;
   createdAt: string;
+  updatedAt?: string;
+  deliveredAt?: string;
   items: OrderItem[];
 };
 
