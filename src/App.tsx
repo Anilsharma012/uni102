@@ -27,6 +27,7 @@ import AccountShipments from "./pages/AccountShipments";
 import AccountProfile from "./pages/AccountProfile";
 import { InvoicePage } from "./pages/InvoicePage";
 import NotFound from "./pages/NotFound";
+import CheckoutPayment from "./pages/CheckoutPayment";
 
 const queryClient = new QueryClient();
 
