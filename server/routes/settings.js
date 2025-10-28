@@ -188,6 +188,23 @@ router.get('/contact', async (req, res) => {
   }
 });
 
+// Public Razorpay settings for checkout (only exposes public Key ID)
+router.get('/razorpay/public', async (req, res) => {
+  try {
+    const doc = await ensureSettingsDoc();
+    const razorpay = (doc.razorpay || {});
+    const out = {
+      keyId: razorpay.isActive ? (razorpay.keyId || '') : '',
+      currency: razorpay.currency || 'INR',
+      isActive: razorpay.isActive || false,
+    };
+    return res.json({ ok: true, data: out });
+  } catch (error) {
+    console.error('Failed to load public Razorpay settings', error);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
 router.put('/', requireAuth, requireAdmin, async (req, res) => {
   try {
     const body = req.body || {};
