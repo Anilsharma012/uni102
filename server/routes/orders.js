@@ -166,9 +166,22 @@ router.put('/:id/status', requireAuth, requireAdmin, async (req, res) => {
     const { status } = req.body || {};
     if (!status) return res.status(400).json({ ok: false, message: 'Missing status' });
     if (!ALLOWED_STATUSES.includes(status)) return res.status(400).json({ ok: false, message: 'Invalid status' });
-    const doc = await Order.findByIdAndUpdate(id, { status }, { new: true }).lean();
-    if (!doc) return res.status(404).json({ ok: false, message: 'Not found' });
-    return res.json({ ok: true, data: doc });
+    const order = await Order.findById(id).populate('userId');
+    if (!order) return res.status(404).json({ ok: false, message: 'Not found' });
+
+    const previousStatus = order.status;
+    order.status = status;
+    await order.save();
+
+    // Send email on status change
+    if (status !== previousStatus && order.userId && order.userId.email) {
+      const user = order.userId;
+      if (status === 'shipped' || status === 'delivered') {
+        await sendStatusUpdateEmail(order, user, status);
+      }
+    }
+
+    return res.json({ ok: true, data: order });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ ok: false, message: 'Server error' });
