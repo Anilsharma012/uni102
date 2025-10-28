@@ -2,20 +2,29 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckoutModal } from "@/components/CheckoutModal";
 
 const Cart = () => {
   const { items, subtotal, discountAmount, total, appliedCoupon, applyCoupon, removeCoupon, updateQty, removeItem } = useCart();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [openCheckout, setOpenCheckout] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const couponFromUrl = searchParams.get('coupon');
+    if (couponFromUrl && !couponCode && !appliedCoupon) {
+      setCouponCode(couponFromUrl);
+    }
+  }, [searchParams, couponCode, appliedCoupon]);
 
   const handleDecrease = (id: string, qty: number) => {
     if (qty <= 1) return;
@@ -199,7 +208,7 @@ const Cart = () => {
                   </div>
                 </div>
 
-                <Button className="w-full" size="lg" onClick={() => setOpenCheckout(true)}>
+                <Button className="w-full" size="lg" onClick={() => navigate('/checkout')}>
                   Proceed to Checkout
                 </Button>
               </Card>

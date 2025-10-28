@@ -15,6 +15,7 @@ import { SizeChartModal } from "@/components/SizeChartModal";
 import { SizeChartTableModal } from "@/components/SizeChartTableModal";
 import { ReviewModal } from "@/components/ReviewModal";
 import ReviewsList from "@/components/ReviewsList";
+import { AvailableCoupons } from "@/components/AvailableCoupons";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const resolveImage = (src?: string) => {
@@ -288,6 +289,12 @@ const ProductDetail = () => {
               <Badge variant={outOfStock ? 'destructive' : 'secondary'}>{outOfStock ? 'Not Available' : 'Available'}</Badge>
             </div>
             <p className="text-muted-foreground mb-8">{product.description}</p>
+
+            <AvailableCoupons
+              onUseNow={(code) => {
+                navigate(`/cart?coupon=${encodeURIComponent(code)}`);
+              }}
+            />
 
             {/* Per-size inventory display */}
             {product?.trackInventoryBySize && Array.isArray(product?.sizeInventory) && product.sizeInventory.length > 0 && (

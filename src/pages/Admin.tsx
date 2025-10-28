@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { AdminPages } from '@/components/AdminPages';
 import { Pagination } from '@/components/Pagination';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Product, Order, User } from '@/types/database.types';
@@ -90,6 +91,7 @@ const NAV_ITEMS = [
     { id: 'products', label: 'Products', icon: Package },
     { id: 'categories', label: 'Categories', icon: Tags },
     { id: 'coupons', label: 'Coupon Management', icon: Percent },
+    { id: 'pages', label: 'Pages', icon: LayoutDashboard },
     { id: 'orders', label: 'Orders', icon: Receipt },
     { id: 'users', label: 'Users', icon: Users2 },
     { id: 'reviews', label: 'User Reviews', icon: Star },
@@ -3265,6 +3267,8 @@ const handleProductSubmit = async (e: React.FormEvent) => {
         return renderCategories();
       case 'coupons':
         return renderCoupons();
+      case 'pages':
+        return <AdminPages />;
       case 'orders':
         return renderOrders();
       case 'users':

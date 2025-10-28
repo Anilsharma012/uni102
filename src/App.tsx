@@ -27,6 +27,7 @@ import AccountShipments from "./pages/AccountShipments";
 import AccountProfile from "./pages/AccountProfile";
 import { InvoicePage } from "./pages/InvoicePage";
 import NotFound from "./pages/NotFound";
+import CheckoutPayment from "./pages/CheckoutPayment";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/collection/:slug" element={<CollectionDetail />} />
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<CheckoutPayment />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/wishlist" element={<Wishlist />} />
