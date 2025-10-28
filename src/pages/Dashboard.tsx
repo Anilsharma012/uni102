@@ -415,12 +415,14 @@ export default function Dashboard() {
                                 {o.upi?.txnId ? <span className="ml-3 text-xs">UTR: {o.upi.txnId}</span> : null}
                               </div>
                               <div className="flex gap-2 flex-wrap">
-                                <Link to={`/account/orders/${o._id}/invoice`}>
-                                  <Button size="sm" variant="outline">
-                                    View Invoice
-                                  </Button>
-                                </Link>
-                                {o.status === "delivered" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => downloadInvoice(o._id)}
+                                >
+                                  Download Invoice
+                                </Button>
+                                {o.status === "delivered" && isDeliveredWithin7Days(o.createdAt) && (
                                   <Button
                                     size="sm"
                                     variant="outline"
