@@ -107,17 +107,26 @@ export const AdminPages: React.FC = () => {
     try {
       setSaving(true);
 
+      let res;
       if (editingPage) {
-        await apiFetch<Page>(`/api/admin/pages/${editingPage.id}`, {
+        res = await api(`/api/admin/pages/${editingPage.id}`, {
           method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(pageForm),
         });
+        if (!res.ok) {
+          throw new Error(res.json?.message || 'Failed to update page');
+        }
         toast.success('Page updated successfully');
       } else {
-        await apiFetch<Page>('/api/admin/pages/create', {
+        res = await api('/api/admin/pages/create', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(pageForm),
         });
+        if (!res.ok) {
+          throw new Error(res.json?.message || 'Failed to create page');
+        }
         toast.success('Page created successfully');
       }
 
