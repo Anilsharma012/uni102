@@ -255,4 +255,82 @@ router.put('/', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: Get Razorpay settings
+router.get('/razorpay', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const doc = await ensureSettingsDoc();
+    const razorpay = (doc.razorpay || {});
+    const out = {
+      keyId: razorpay.keyId || '',
+      keySecret: razorpay.keySecret || '',
+      webhookSecret: razorpay.webhookSecret || '',
+      currency: razorpay.currency || 'INR',
+      isActive: razorpay.isActive || false,
+    };
+    return res.json({ ok: true, data: out });
+  } catch (error) {
+    console.error('Failed to load Razorpay settings', error);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
+// Admin: Test Razorpay connection
+router.post('/razorpay/test', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const doc = await ensureSettingsDoc();
+    const razorpay = (doc.razorpay || {});
+
+    const keyId = razorpay.keyId || '';
+    const keySecret = razorpay.keySecret || '';
+
+    if (!keyId || !keySecret) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Razorpay Key ID and Key Secret are required to test connection'
+      });
+    }
+
+    try {
+      const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const response = await fetch('https://api.razorpay.com/v1/settings', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        return res.status(401).json({
+          ok: false,
+          message: 'Invalid Razorpay credentials. Please check your Key ID and Key Secret.'
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Razorpay API error:', response.status, errorData);
+        return res.status(500).json({
+          ok: false,
+          message: `Razorpay API error: ${response.statusText}`
+        });
+      }
+
+      return res.json({
+        ok: true,
+        message: 'Connection successful! Your Razorpay credentials are valid.'
+      });
+    } catch (fetchError) {
+      console.error('Error testing Razorpay connection:', fetchError);
+      return res.status(500).json({
+        ok: false,
+        message: 'Failed to connect to Razorpay API. Please check your internet connection.'
+      });
+    }
+  } catch (error) {
+    console.error('Failed to test Razorpay settings', error);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;
