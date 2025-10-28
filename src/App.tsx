@@ -29,6 +29,8 @@ import { InvoicePage } from "./pages/InvoicePage";
 import NotFound from "./pages/NotFound";
 import CheckoutPayment from "./pages/CheckoutPayment";
 import PageDetail from "./pages/PageDetail";
+import MyOrders from "./pages/MyOrders";
+import AdminReturns from "./pages/AdminReturns";
 
 const queryClient = new QueryClient();
 
