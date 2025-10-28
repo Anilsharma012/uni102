@@ -625,6 +625,9 @@ const Admin = () => {
     if (activeSection === 'reviews') {
       void fetchAdminReviews();
     }
+    if (activeSection === 'coupons') {
+      void fetchCoupons();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection, overviewRange, navigate]);
 
