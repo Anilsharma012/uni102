@@ -10,9 +10,12 @@ import { useState } from "react";
 import { CheckoutModal } from "@/components/CheckoutModal";
 
 const Cart = () => {
-  const { items, total, updateQty, removeItem } = useCart();
+  const { items, subtotal, discountAmount, total, appliedCoupon, applyCoupon, removeCoupon, updateQty, removeItem } = useCart();
   const { toast } = useToast();
   const [openCheckout, setOpenCheckout] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const handleDecrease = (id: string, qty: number) => {
     if (qty <= 1) return;
@@ -22,6 +25,52 @@ const Cart = () => {
   const handleRemove = (id: string) => {
     removeItem(id);
     toast({ title: "Removed from cart" });
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Enter a coupon code");
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError(null);
+
+    try {
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ code: couponCode }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.ok) {
+        applyCoupon({ code: data.data.code, discount: data.data.discount });
+        setCouponCode("");
+        toast({ title: `Coupon applied! ${data.data.discount}% off` });
+      } else {
+        setCouponError(data.message || "Invalid coupon");
+      }
+    } catch (error) {
+      setCouponError("Failed to validate coupon");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponCode("");
+    setCouponError(null);
+    toast({ title: "Coupon removed" });
   };
 
   return (
@@ -81,15 +130,67 @@ const Cart = () => {
               <Card className="p-6 sticky top-24">
                 <h2 className="text-xl font-bold mb-6">Order Summary</h2>
 
-                <div className="space-y-3 mb-6">
+                <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-semibold">₹{total.toLocaleString("en-IN")}</span>
+                    <span className="font-semibold">₹{subtotal.toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="font-semibold">Free</span>
                   </div>
+
+                  <div className="border-t border-border pt-4">
+                    <label className="block text-xs font-medium text-muted-foreground mb-2">Have a Coupon?</label>
+                    {!appliedCoupon ? (
+                      <div className="flex gap-2 mb-3">
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => { setCouponCode(e.target.value); setCouponError(null); }}
+                          placeholder="Enter code"
+                          className="flex-1 border border-border rounded px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                          disabled={couponLoading}
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          disabled={couponLoading || !couponCode.trim()}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Apply
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-2 mb-3">
+                        <div className="text-xs">
+                          <span className="font-medium text-green-900 dark:text-green-100">{appliedCoupon.code}</span>
+                          <span className="text-green-700 dark:text-green-300 ml-2 font-medium">-{appliedCoupon.discount}%</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveCoupon}
+                          className="h-6 px-2 text-xs"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    )}
+                    {couponError && (
+                      <p className="text-xs text-destructive mb-2">{couponError}</p>
+                    )}
+                  </div>
+
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-700 dark:text-green-300">
+                      <span>Discount ({appliedCoupon?.discount}%)</span>
+                      <span>-₹{discountAmount.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+
                   <div className="border-t border-border pt-3">
                     <div className="flex justify-between">
                       <span className="font-semibold">Total</span>
