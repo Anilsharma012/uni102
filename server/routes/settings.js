@@ -309,7 +309,7 @@ router.post('/razorpay/test', requireAuth, requireAdmin, async (req, res) => {
 
     try {
       const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-      const response = await fetch('https://api.razorpay.com/v1/settings', {
+      const response = await fetch('https://api.razorpay.com/v1/payments?count=1', {
         method: 'GET',
         headers: {
           'Authorization': `Basic ${auth}`,
