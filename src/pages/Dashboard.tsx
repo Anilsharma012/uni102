@@ -65,6 +65,8 @@ export default function Dashboard() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "cart" | "wishlist">("orders");
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [selectedOrderForReturn, setSelectedOrderForReturn] = useState<Order | null>(null);
 
   // Protect route
   useEffect(() => {
