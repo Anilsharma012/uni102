@@ -297,6 +297,48 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
             </div>
           </div>
 
+          <div className="border-t border-border pt-4">
+            <label className="block text-sm font-medium mb-2">Have a Coupon?</label>
+            {!appliedCoupon ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => { setCouponCode(e.target.value); setCouponError(null); }}
+                  placeholder="Enter coupon code"
+                  className={fieldBase}
+                  disabled={couponLoading}
+                />
+                <Button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={couponLoading || !couponCode.trim()}
+                  size="sm"
+                >
+                  {couponLoading ? "Applying..." : "Apply"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-3">
+                <div className="text-sm">
+                  <span className="font-medium">{appliedCoupon.code}</span>
+                  <span className="text-green-700 dark:text-green-300 ml-2">-{appliedCoupon.discount}%</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveCoupon}
+                >
+                  Remove
+                </Button>
+              </div>
+            )}
+            {couponError && (
+              <p className="text-xs text-destructive mt-1">{couponError}</p>
+            )}
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-2">Payment Method</label>
             <div className="space-y-2">
