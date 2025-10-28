@@ -2617,8 +2617,8 @@ const handleProductSubmit = async (e: React.FormEvent) => {
   const renderOrders = () => (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Orders</h2>
-        <p className="text-sm text-muted-foreground">Track customer orders and update their status.</p>
+        <h2 className="text-2xl font-bold">Manage Orders</h2>
+        <p className="text-sm text-muted-foreground">Track customer orders, manage status updates, and send notifications.</p>
         {orders.length > 0 && (
           <p className="text-xs text-muted-foreground mt-2">
             Showing {(ordersCurrentPage - 1) * ordersPerPage + 1} to {Math.min(ordersCurrentPage * ordersPerPage, orders.length)} of {orders.length} orders
@@ -2631,97 +2631,121 @@ const handleProductSubmit = async (e: React.FormEvent) => {
         </div>
       ) : (
         <>
-          <div className="grid gap-4">
-            {orders.length === 0 && (
-              <p className="text-sm text-muted-foreground">No orders found.</p>
-            )}
-            {paginatedOrders.map((order: any) => (
-            <Card key={order._id || order.id}>
-              <CardContent className="p-4 cursor-pointer" onClick={() => openOrderDetail(String(order._id || order.id))}>
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                  <div>
-                    <p className="font-semibold">
-                      Order #{String((order._id || order.id) ?? '').slice(0, 8)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {(order.created_at || order.createdAt)
-                        ? new Date((order.created_at || order.createdAt) as any).toLocaleDateString()
-                        : ''}
-                    </p>
-                    <p className="font-bold mt-2">
-                      ₹{Number((order as any).total ?? (order as any).total_amount ?? 0).toLocaleString('en-IN')}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                    {(() => {
-                      const orderId = String((order._id || order.id) as any);
-                      const hasInvoice = orderInvoices[orderId];
-                      const isGenerating = generatingInvoice[orderId];
-                      return (
-                        <>
-                          <Button
-                            size="sm"
-                            variant={order.status === 'pending' ? 'default' : 'outline'}
-                            onClick={() => updateOrderStatus(orderId, 'pending')}
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="p-4 text-left font-semibold">Order ID</th>
+                    <th className="p-4 text-left font-semibold">Customer</th>
+                    <th className="p-4 text-left font-semibold">Amount</th>
+                    <th className="p-4 text-left font-semibold">Payment</th>
+                    <th className="p-4 text-left font-semibold">Status</th>
+                    <th className="p-4 text-left font-semibold">Date</th>
+                    <th className="p-4 text-left font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-4 text-center text-muted-foreground">
+                        No orders found.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedOrders.map((order: any) => (
+                      <tr key={order._id || order.id} className="border-b hover:bg-muted/30">
+                        <td className="p-4 font-mono text-xs">
+                          <button
+                            className="text-primary hover:underline"
+                            onClick={() => openOrderDetail(String(order._id || order.id))}
                           >
-                            Pending
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={order.status === 'paid' ? 'default' : 'outline'}
-                            onClick={() => updateOrderStatus(orderId, 'paid')}
+                            #{String((order._id || order.id) ?? '').slice(0, 8).toUpperCase()}
+                          </button>
+                        </td>
+                        <td className="p-4 text-sm">
+                          <div>
+                            <p className="font-medium">{order.name || 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground">{order.email || order.userId?.email || 'N/A'}</p>
+                          </div>
+                        </td>
+                        <td className="p-4 font-semibold">
+                          ₹{Number((order as any).total ?? (order as any).total_amount ?? 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="p-4 text-sm capitalize">
+                          {order.paymentMethod || 'COD'}
+                        </td>
+                        <td className="p-4">
+                          <select
+                            value={order.status || 'pending'}
+                            onChange={(e) => updateOrderStatus(String(order._id || order.id), e.target.value)}
+                            className="px-2 py-1 text-xs border border-border rounded bg-background hover:bg-muted cursor-pointer"
                           >
-                            Paid
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={order.status === 'shipped' ? 'default' : 'outline'}
-                            onClick={() => updateOrderStatus(orderId, 'shipped')}
-                          >
-                            Shipped
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={order.status === 'delivered' ? 'default' : 'outline'}
-                            onClick={() => updateOrderStatus(orderId, 'delivered')}
-                          >
-                            Delivered
-                          </Button>
-                          {order.status === 'paid' && !hasInvoice && (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              disabled={isGenerating}
-                              onClick={() => generateInvoice(orderId)}
-                            >
-                              {isGenerating ? (
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </td>
+                        <td className="p-4 text-xs text-muted-foreground">
+                          {(order.created_at || order.createdAt)
+                            ? new Date((order.created_at || order.createdAt) as any).toLocaleDateString()
+                            : '-'}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            {(() => {
+                              const orderId = String((order._id || order.id) as any);
+                              const hasInvoice = orderInvoices[orderId];
+                              const isGenerating = generatingInvoice[orderId];
+                              return (
                                 <>
-                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                  Generating...
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openOrderDetail(orderId)}
+                                  >
+                                    View
+                                  </Button>
+                                  {order.status === 'paid' && !hasInvoice && (
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      disabled={isGenerating}
+                                      onClick={() => generateInvoice(orderId)}
+                                    >
+                                      {isGenerating ? (
+                                        <>
+                                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                          Gen...
+                                        </>
+                                      ) : (
+                                        'Invoice'
+                                      )}
+                                    </Button>
+                                  )}
+                                  {hasInvoice && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => viewInvoice(orderId)}
+                                    >
+                                      Invoice
+                                    </Button>
+                                  )}
                                 </>
-                              ) : (
-                                'Approve & Generate Invoice'
-                              )}
-                            </Button>
-                          )}
-                          {hasInvoice && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => viewInvoice(orderId)}
-                            >
-                              View Invoice
-                            </Button>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          </div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
           {orders.length > 0 && (
             <Pagination
               currentPage={ordersCurrentPage}
