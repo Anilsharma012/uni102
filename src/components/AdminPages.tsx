@@ -43,31 +43,6 @@ const EMPTY_FORM: PageForm = {
   status: 'active',
 };
 
-async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = (typeof window !== 'undefined') ? localStorage.getItem('token') : null;
-  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) } as Record<string, string>;
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const fetchOptions: RequestInit = {
-    ...options,
-    headers,
-    credentials: 'include',
-  };
-
-  try {
-    const res = await fetch(path.startsWith('http') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`, fetchOptions);
-    let body: any = null;
-    try { body = await res.json(); } catch { body = null; }
-    if (!res.ok) {
-      const msg = body?.message || body?.error || `${res.status} ${res.statusText}`;
-      throw new Error(msg);
-    }
-    if (body && typeof body === 'object' && body !== null && 'data' in body) return body.data as T;
-    return body as T;
-  } catch (err: any) {
-    throw new Error(err?.message || String(err || 'Network error'));
-  }
-}
 
 export const AdminPages: React.FC = () => {
   const [pages, setPages] = useState<Page[]>([]);
