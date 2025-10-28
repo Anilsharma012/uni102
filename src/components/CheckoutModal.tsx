@@ -26,7 +26,7 @@ type PaymentSettings = {
 };
 
 export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
-  const { items, total, placeOrder, clearCart } = useCart();
+  const { items, subtotal, discountAmount, total, appliedCoupon, applyCoupon, removeCoupon, placeOrder, clearCart } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -38,6 +38,9 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
   const [stateName, setStateName] = useState("");
   const [pincode, setPincode] = useState("");
   const [payment, setPayment] = useState<"COD" | "UPI">("COD");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(false);
@@ -106,6 +109,52 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
     }
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Enter a coupon code");
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError(null);
+
+    try {
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ code: couponCode }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.ok) {
+        applyCoupon({ code: data.data.code, discount: data.data.discount });
+        setCouponCode("");
+        toast({ title: `Coupon applied! ${data.data.discount}% off` });
+      } else {
+        setCouponError(data.message || "Invalid coupon");
+      }
+    } catch (error) {
+      setCouponError("Failed to validate coupon");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponCode("");
+    setCouponError(null);
+    toast({ title: "Coupon removed" });
+  };
+
   const fieldBase =
     "w-full border border-border rounded px-3 py-2 " +
     "text-foreground placeholder:text-muted-foreground bg-background " +
@@ -150,11 +199,34 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
         image: i.image,
         size: i.meta?.size || undefined,
       })),
+      subtotal,
+      discountAmount,
       total,
+      coupon: appliedCoupon ? { code: appliedCoupon.code, discount: appliedCoupon.discount } : undefined,
       status: "pending",
       upi: payment === "UPI" ? { payerName: upiPayerName, txnId: upiTxnId || undefined } : undefined,
       customer: { name, phone, address, city, state: stateName, pincode },
     };
+
+    // Apply coupon if present
+    if (appliedCoupon) {
+      try {
+        const token = localStorage.getItem("token");
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        await fetch("/api/coupons/apply", {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ code: appliedCoupon.code }),
+        });
+      } catch (err) {
+        console.warn("Failed to mark coupon as used:", err);
+      }
+    }
 
     const res = await placeOrder(payload);
     setLoading(false);
@@ -246,6 +318,48 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
               <label className="block text-sm font-medium mb-1" htmlFor="pincode">Pincode</label>
               <input id="pincode" value={pincode} onChange={(e) => setPincode(e.target.value.replace(/[^\d]/g, ''))} className={fieldBase} autoComplete="postal-code" placeholder="110001" inputMode="numeric" maxLength={6} />
             </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <label className="block text-sm font-medium mb-2">Have a Coupon?</label>
+            {!appliedCoupon ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => { setCouponCode(e.target.value); setCouponError(null); }}
+                  placeholder="Enter coupon code"
+                  className={fieldBase}
+                  disabled={couponLoading}
+                />
+                <Button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={couponLoading || !couponCode.trim()}
+                  size="sm"
+                >
+                  {couponLoading ? "Applying..." : "Apply"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-3">
+                <div className="text-sm">
+                  <span className="font-medium">{appliedCoupon.code}</span>
+                  <span className="text-green-700 dark:text-green-300 ml-2">-{appliedCoupon.discount}%</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveCoupon}
+                >
+                  Remove
+                </Button>
+              </div>
+            )}
+            {couponError && (
+              <p className="text-xs text-destructive mt-1">{couponError}</p>
+            )}
           </div>
 
           <div>
@@ -340,9 +454,21 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
 
         <DialogFooter>
           <div className="w-full flex flex-col gap-4">
-            <div>
-              <div className="text-sm text-muted-foreground">Total</div>
-              <div className="font-bold text-lg">₹{total.toLocaleString("en-IN")}</div>
+            <div className="border-t border-border pt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>₹{subtotal.toLocaleString("en-IN")}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm text-green-700 dark:text-green-300">
+                  <span>Discount ({appliedCoupon?.discount}%)</span>
+                  <span>-₹{discountAmount.toLocaleString("en-IN")}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-lg">
+                <span>Total</span>
+                <span>₹{total.toLocaleString("en-IN")}</span>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
