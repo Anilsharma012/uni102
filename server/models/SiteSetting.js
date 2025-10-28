@@ -76,6 +76,7 @@ const SiteSettingSchema = new mongoose.Schema(
       gstIn: { type: String, default: '' },
     },
     payment: { type: PaymentSettingsSchema, default: () => ({}) },
+    razorpay: { type: RazorpaySettingsSchema, default: () => ({}) },
     shipping: {
       type: new mongoose.Schema(
         {
