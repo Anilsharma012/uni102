@@ -179,6 +179,28 @@ function normalizeSettings(raw: any): IntegrationSettings {
           ? raw.payment.instructions.trim()
           : defaults.payment.instructions,
     },
+    razorpay: {
+      keyId:
+        typeof raw?.razorpay?.keyId === 'string' && raw.razorpay.keyId.trim()
+          ? raw.razorpay.keyId.trim()
+          : defaults.razorpay.keyId,
+      keySecret:
+        typeof raw?.razorpay?.keySecret === 'string' && raw.razorpay.keySecret.trim()
+          ? raw.razorpay.keySecret.trim()
+          : defaults.razorpay.keySecret,
+      webhookSecret:
+        typeof raw?.razorpay?.webhookSecret === 'string' && raw.razorpay.webhookSecret.trim()
+          ? raw.razorpay.webhookSecret.trim()
+          : defaults.razorpay.webhookSecret,
+      currency:
+        typeof raw?.razorpay?.currency === 'string' && raw.razorpay.currency.trim()
+          ? raw.razorpay.currency.trim()
+          : defaults.razorpay.currency,
+      isActive:
+        typeof raw?.razorpay?.isActive === 'boolean'
+          ? raw.razorpay.isActive
+          : defaults.razorpay.isActive,
+    },
     shipping: {
       shiprocket: {
         enabled:
