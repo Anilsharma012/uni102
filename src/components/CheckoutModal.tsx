@@ -431,9 +431,21 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
 
         <DialogFooter>
           <div className="w-full flex flex-col gap-4">
-            <div>
-              <div className="text-sm text-muted-foreground">Total</div>
-              <div className="font-bold text-lg">₹{total.toLocaleString("en-IN")}</div>
+            <div className="border-t border-border pt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>₹{subtotal.toLocaleString("en-IN")}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm text-green-700 dark:text-green-300">
+                  <span>Discount ({appliedCoupon?.discount}%)</span>
+                  <span>-₹{discountAmount.toLocaleString("en-IN")}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-lg">
+                <span>Total</span>
+                <span>₹{total.toLocaleString("en-IN")}</span>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
