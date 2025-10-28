@@ -67,13 +67,15 @@ export default function AdminReturns() {
       });
       if (ok) {
         setRows(prev => prev.map(r => r._id === orderId ? { ...r, returnStatus: value, status: value === 'Approved' ? 'returned' : r.status } : r));
-        // Auto email
-        const row = rows.find(r => r._id === orderId);
-        const userEmail = (row?.userId && typeof row.userId === 'object') ? (row.userId.email || '') : '';
-        if (userEmail) {
-          const subj = value === 'Approved' ? 'Return Approved' : (value === 'Rejected' ? 'Return Rejected' : 'Return Update');
-          const html = `<p>Hello ${(row?.userId as any)?.name || ''},</p><p>Your return request for order #${orderId.slice(0,8).toUpperCase()} is <b>${value}</b>.</p>${value === 'Approved' ? `<p>Refund will be processed to UPI <b>${row?.refundUpiId || '-'}</b> within 5-7 days.</p>` : ''}`;
-          await api('/api/orders/send-mail', { method: 'POST', body: JSON.stringify({ to: userEmail, subject: subj, html }) });
+        // Auto email (avoid duplicate on Approved - backend sends a templated approval email)
+        if (value !== 'Approved') {
+          const row = rows.find(r => r._id === orderId);
+          const userEmail = (row?.userId && typeof row.userId === 'object') ? (row.userId.email || '') : '';
+          if (userEmail) {
+            const subj = value === 'Rejected' ? 'Return Rejected' : 'Return Update';
+            const html = `<p>Hello ${(row?.userId as any)?.name || ''},</p><p>Your return request for order #${orderId.slice(0,8).toUpperCase()} is <b>${value}</b>.</p>`;
+            await api('/api/orders/send-mail', { method: 'POST', body: JSON.stringify({ to: userEmail, subject: subj, html }) });
+          }
         }
         toast({ title: 'Status updated' });
       }
