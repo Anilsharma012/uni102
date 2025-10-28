@@ -122,6 +122,16 @@ function createDefaultPaymentSettings(): PaymentSettingsForm {
   };
 }
 
+function createDefaultRazorpaySettings(): RazorpaySettingsForm {
+  return {
+    keyId: '',
+    keySecret: '',
+    webhookSecret: '',
+    currency: 'INR',
+    isActive: false,
+  };
+}
+
 function createDefaultShiprocketSettings(): ShiprocketSettingsForm {
   return {
     enabled: true,
@@ -138,6 +148,7 @@ function createDefaultSettings(): IntegrationSettings {
     id: undefined,
     domain: 'www.uni10.in',
     payment: createDefaultPaymentSettings(),
+    razorpay: createDefaultRazorpaySettings(),
     shipping: {
       shiprocket: createDefaultShiprocketSettings(),
     },
