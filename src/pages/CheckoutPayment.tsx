@@ -120,6 +120,20 @@ const CheckoutPayment = () => {
 
       setSubmitting(true);
 
+      // Ensure Razorpay SDK is loaded
+      if (!(window as any).Razorpay) {
+        await new Promise<void>((resolve, reject) => {
+          const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+          if (existing) return existing.addEventListener('load', () => resolve());
+          const s = document.createElement('script');
+          s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          s.async = true;
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+          document.body.appendChild(s);
+        });
+      }
+
       const response = await fetch('/api/payment/create-order', {
         method: 'POST',
         headers: {
