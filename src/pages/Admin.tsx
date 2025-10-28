@@ -70,6 +70,14 @@ type PaymentSettingsForm = {
   instructions: string;
 };
 
+type RazorpaySettingsForm = {
+  keyId: string;
+  keySecret: string;
+  webhookSecret: string;
+  currency: string;
+  isActive: boolean;
+};
+
 type ShiprocketSettingsForm = {
   enabled: boolean;
   email: string;
@@ -83,6 +91,7 @@ type IntegrationSettings = {
   id?: string;
   domain: string;
   payment: PaymentSettingsForm;
+  razorpay: RazorpaySettingsForm;
   shipping: { shiprocket: ShiprocketSettingsForm };
 };
 
