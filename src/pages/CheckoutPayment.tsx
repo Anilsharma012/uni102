@@ -106,9 +106,21 @@ const CheckoutPayment = () => {
           currency: r.currency || 'INR',
           isActive: r.isActive || false,
         });
+      } else {
+        console.warn('Razorpay settings response invalid:', json);
+        setRazorpaySettings({
+          keyId: '',
+          currency: 'INR',
+          isActive: false,
+        });
       }
     } catch (error) {
       console.error('Failed to fetch Razorpay settings:', error);
+      setRazorpaySettings({
+        keyId: '',
+        currency: 'INR',
+        isActive: false,
+      });
     }
   };
 
