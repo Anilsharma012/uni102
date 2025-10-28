@@ -1,31 +1,31 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Package, MapPin, Mail, ArrowRight, Home } from 'lucide-react';
-import { toast } from 'sonner';
+import { CheckCircle, Download, ShoppingBag } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
-interface OrderItem {
+type OrderItem = {
   id: string;
   title: string;
   price: number;
   qty: number;
-  image: string;
-}
+  image?: string;
+  size?: string;
+};
 
-interface Order {
+type OrderData = {
   _id: string;
   name: string;
+  email?: string;
   phone: string;
   address: string;
   city: string;
   state: string;
   pincode: string;
-  paymentMethod: string;
   items: OrderItem[];
   subtotal: number;
   discount: number;
@@ -33,76 +33,99 @@ interface Order {
   tax: number;
   total: number;
   status: string;
+  paymentMethod: string;
   createdAt: string;
-}
+  trackingNumber?: string;
+};
 
-const OrderSuccess = () => {
-  const [searchParams] = useSearchParams();
+export default function OrderSuccess() {
   const navigate = useNavigate();
-  const orderId = searchParams.get('orderId');
+  const location = useLocation();
+  const { toast } = useToast();
   
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
-    if (!orderId) {
-      navigate('/');
-      return;
-    }
+    const loadOrder = async () => {
+      try {
+        // Extract order ID from URL params or location state
+        const params = new URLSearchParams(location.search);
+        const orderId = params.get('id') || (location.state as any)?.orderId;
 
-    fetchOrderDetails();
-  }, [orderId, navigate]);
+        if (!orderId) {
+          toast({
+            title: 'Order Not Found',
+            description: 'No order ID provided',
+            variant: 'destructive',
+          });
+          navigate('/dashboard');
+          return;
+        }
 
-  const fetchOrderDetails = async () => {
+        const { ok, json } = await api(`/api/orders/${orderId}`);
+        if (ok && json?.data) {
+          setOrder(json.data);
+          
+          // Auto-send confirmation email if not already sent
+          if (json.data.status === 'paid' || json.data.status === 'pending') {
+            await sendConfirmationEmail(orderId);
+          }
+        } else {
+          toast({
+            title: 'Error',
+            description: 'Failed to load order details',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load order:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load order details',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOrder();
+  }, [location, navigate, toast]);
+
+  const sendConfirmationEmail = async (orderId: string) => {
     try {
-      setLoading(true);
-      const { ok, json } = await api(`/api/orders/${orderId}`);
-      
-      if (ok && json?.data) {
-        setOrder(json.data as Order);
-      } else {
-        toast.error('Failed to load order details');
-        navigate('/my-orders');
+      setSendingEmail(true);
+      const { ok } = await api(`/api/orders/${orderId}/email`, { method: 'POST' });
+      if (ok) {
+        toast({
+          title: 'Email Sent',
+          description: 'Order confirmation email has been sent',
+        });
       }
     } catch (error) {
-      console.error('Fetch order error:', error);
-      toast.error('Failed to load order');
-      navigate('/my-orders');
+      console.error('Failed to send email:', error);
     } finally {
-      setLoading(false);
+      setSendingEmail(false);
     }
   };
 
-  const sendConfirmationEmail = async () => {
-    if (!orderId) return;
-
-    try {
-      setSending(true);
-      const { ok, json } = await api(`/api/orders/${orderId}/email`, {
-        method: 'POST',
-      });
-
-      if (ok) {
-        toast.success('Confirmation email sent successfully!');
-      } else {
-        toast.error(json?.message || 'Failed to send email');
-      }
-    } catch (error) {
-      console.error('Send email error:', error);
-      toast.error('Failed to send confirmation email');
-    } finally {
-      setSending(false);
-    }
+  const handleDownloadInvoice = () => {
+    if (!order) return;
+    // This would typically generate and download a PDF invoice
+    toast({
+      title: 'Coming Soon',
+      description: 'Invoice download will be available shortly',
+    });
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Navbar />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading order details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your order...</p>
         </div>
       </div>
     );
@@ -110,198 +133,176 @@ const OrderSuccess = () => {
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-background">
+      <div>
         <Navbar />
-        <main className="container mx-auto px-4 pt-24 pb-12">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Order not found</p>
-            <Link to="/my-orders" className="text-primary hover:underline mt-4 inline-block">
-              View My Orders
-            </Link>
-          </div>
+        <main className="container mx-auto px-4 pt-24 pb-12 min-h-screen flex items-center justify-center">
+          <Card className="p-8 text-center max-w-md">
+            <p className="text-gray-600 mb-4">Order not found</p>
+            <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+          </Card>
         </main>
         <Footer />
       </div>
     );
   }
 
-  const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    paid: 'bg-blue-100 text-blue-800',
-    shipped: 'bg-purple-100 text-purple-800',
-    delivered: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-  };
-
-  const displayStatus = order.status.charAt(0).toUpperCase() + order.status.slice(1);
-
   return (
-    <div className="min-h-screen bg-background">
+    <div>
       <Navbar />
       <main className="container mx-auto px-4 pt-24 pb-12">
-        {/* Success Banner */}
-        <div className="text-center mb-12">
-          <div className="flex justify-center mb-6">
-            <CheckCircle className="h-20 w-20 text-green-500" />
+        <div className="max-w-3xl mx-auto">
+          {/* Success Banner */}
+          <div className="text-center mb-8">
+            <div className="inline-block mb-4">
+              <CheckCircle className="h-16 w-16 text-green-500" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Order Placed Successfully!</h1>
+            <p className="text-gray-600">Thank you for your purchase. Your order is being prepared.</p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-4">
-            Order <span className="text-green-500">Confirmed!</span>
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Thank you for your order. We've received your order and will start processing it right away.
-          </p>
-        </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 max-w-5xl mx-auto mb-8">
-          {/* Order Summary Card */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="bg-white rounded-xl shadow-sm border-0">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Order Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Order ID and Status */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Order ID</p>
-                    <p className="font-semibold text-base">{order._id.substring(0, 12).toUpperCase()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Status</p>
-                    <Badge className={statusColors[order.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
-                      {displayStatus}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Order Date</p>
-                    <p className="font-semibold text-base">{new Date(order.createdAt).toLocaleDateString('en-IN')}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Payment Method</p>
-                    <p className="font-semibold text-base">{order.paymentMethod}</p>
-                  </div>
+          {/* Order Details Card */}
+          <Card className="p-6 rounded-xl shadow-sm bg-white mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1">Order ID</h2>
+                <p className="text-2xl font-bold text-gray-900">{order._id.substring(0, 8).toUpperCase()}</p>
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1">Order Date</h2>
+                <p className="text-lg text-gray-900">{new Date(order.createdAt).toLocaleDateString('en-IN')}</p>
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1">Payment Method</h2>
+                <p className="text-lg text-gray-900">{order.paymentMethod || 'Not specified'}</p>
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-gray-500 uppercase mb-1">Status</h2>
+                <div className="inline-block">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    order.status === 'paid' || order.status === 'pending'
+                      ? 'bg-blue-100 text-blue-700'
+                      : order.status === 'shipped'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : order.status === 'delivered'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                  </span>
                 </div>
+              </div>
+            </div>
+          </Card>
 
-                <hr className="my-4" />
-
-                {/* Items */}
-                <div>
-                  <h3 className="font-semibold mb-4 text-sm">Items ({order.items.length})</h3>
-                  <div className="space-y-3">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="flex gap-4 pb-3 border-b border-border last:border-0">
-                        {item.image && (
-                          <img
-                            src={item.image}
-                            alt={item.title}
-                            className="w-16 h-16 object-cover rounded-lg bg-muted"
-                          />
-                        )}
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.title}</p>
-                          <p className="text-xs text-muted-foreground">Qty: {item.qty}</p>
-                        </div>
-                        <p className="font-semibold text-sm">₹{(item.price * item.qty).toLocaleString('en-IN')}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <hr className="my-4" />
-
-                {/* Price Breakdown */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>₹{order.subtotal.toLocaleString('en-IN')}</span>
-                  </div>
-                  {order.discount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Discount</span>
-                      <span>-₹{order.discount.toLocaleString('en-IN')}</span>
-                    </div>
+          {/* Order Items */}
+          <Card className="p-6 rounded-xl shadow-sm bg-white mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5" />
+              Order Items
+            </h2>
+            <div className="space-y-4">
+              {order.items.map((item) => (
+                <div key={item.id} className="flex items-start gap-4 pb-4 border-b border-gray-200 last:border-b-0">
+                  {item.image && (
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="h-20 w-20 object-cover rounded-lg bg-gray-100"
+                    />
                   )}
-                  {order.shipping > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Shipping</span>
-                      <span>₹{order.shipping.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
-                    <span>Total Amount</span>
-                    <span className="text-primary">₹{order.total.toLocaleString('en-IN')}</span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                    {item.size && <p className="text-sm text-gray-600">Size: {item.size}</p>}
+                    <p className="text-sm text-gray-600">Qty: {item.qty}</p>
                   </div>
+                  <p className="font-semibold text-gray-900">₹{(item.price * item.qty).toLocaleString('en-IN')}</p>
                 </div>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
+          </Card>
+
+          {/* Order Summary */}
+          <Card className="p-6 rounded-xl shadow-sm bg-white mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal</span>
+                <span>₹{order.subtotal.toLocaleString('en-IN')}</span>
+              </div>
+              {order.discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount</span>
+                  <span>-₹{order.discount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              {order.shipping > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Shipping</span>
+                  <span>₹{order.shipping.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              {order.tax > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Tax</span>
+                  <span>₹{order.tax.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              <div className="border-t pt-3 flex justify-between text-lg font-bold">
+                <span>Total</span>
+                <span className="text-blue-600">₹{order.total.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Shipping Address */}
+          <Card className="p-6 rounded-xl shadow-sm bg-white mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Shipping Address</h2>
+            <p className="text-gray-700 mb-2 font-semibold">{order.name}</p>
+            <p className="text-gray-600 text-sm">{order.address}</p>
+            <p className="text-gray-600 text-sm">
+              {order.city}
+              {order.city && order.state ? ', ' : ''}
+              {order.state} {order.pincode}
+            </p>
+            <p className="text-gray-600 text-sm mt-3">
+              <strong>Phone:</strong> {order.phone}
+            </p>
+          </Card>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={handleDownloadInvoice}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Invoice
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => navigate('/dashboard?tab=orders')}
+            >
+              Back to My Orders
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => navigate('/shop')}
+            >
+              Continue Shopping
+            </Button>
           </div>
 
-          {/* Shipping Address Card */}
-          <div className="space-y-6">
-            <Card className="bg-white rounded-xl shadow-sm border-0">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Delivery Address</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="text-sm space-y-2">
-                <p className="font-semibold">{order.name}</p>
-                <p className="text-muted-foreground">{order.address}</p>
-                <p className="text-muted-foreground">
-                  {order.city}, {order.state} {order.pincode}
-                </p>
-                <p className="text-muted-foreground">
-                  <strong>Phone:</strong> {order.phone}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-blue-50 border-blue-200 rounded-xl shadow-sm">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-blue-600" />
-                  <CardTitle className="text-lg text-blue-900">What's Next?</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="text-sm text-blue-900 space-y-3">
-                <p>✓ We've received your order</p>
-                <p>✓ Confirmation email sent</p>
-                <p>✓ You'll get updates on shipping</p>
-                <p className="text-xs text-blue-800">Typical delivery: 3-5 business days</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-2xl mx-auto">
-          <Button
-            onClick={sendConfirmationEmail}
-            disabled={sending}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Mail className="h-4 w-4" />
-            {sending ? 'Sending...' : 'Resend Confirmation Email'}
-          </Button>
-          <Link to="/my-orders" className="flex-1 sm:flex-none">
-            <Button className="w-full sm:w-auto flex items-center gap-2">
-              Track Your Order
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link to="/" className="flex-1 sm:flex-none">
-            <Button variant="ghost" className="w-full sm:w-auto flex items-center gap-2">
-              <Home className="h-4 w-4" />
-              Back to Home
-            </Button>
-          </Link>
+          {/* Info Box */}
+          <Card className="p-4 rounded-xl bg-blue-50 border border-blue-200 mt-6">
+            <p className="text-sm text-blue-800">
+              <strong>📧 Order Confirmation:</strong> A confirmation email has been sent to your registered email address. You can track your order status from your dashboard.
+            </p>
+          </Card>
         </div>
       </main>
       <Footer />
     </div>
   );
-};
-
-export default OrderSuccess;
+}
