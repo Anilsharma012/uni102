@@ -532,8 +532,11 @@ const Admin = () => {
   const [settings, setSettings] = useState<IntegrationSettings>(createDefaultSettings);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [paymentForm, setPaymentForm] = useState<PaymentSettingsForm>(createDefaultPaymentSettings);
+  const [razorpayForm, setRazorpayForm] = useState<RazorpaySettingsForm>(createDefaultRazorpaySettings);
   const [shiprocketForm, setShiprocketForm] = useState<ShiprocketSettingsForm>(createDefaultShiprocketSettings);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [savingRazorpay, setSavingRazorpay] = useState(false);
+  const [testingRazorpay, setTestingRazorpay] = useState(false);
   const [savingShiprocket, setSavingShiprocket] = useState(false);
   const [uploadingQrCode, setUploadingQrCode] = useState(false);
 
