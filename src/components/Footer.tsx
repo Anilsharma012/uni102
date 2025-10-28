@@ -1,8 +1,34 @@
 import { Link } from "react-router-dom";
 import { Instagram, Twitter, Facebook, Mail, Phone, MapPin } from "lucide-react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+
+type Page = {
+  id: string;
+  slug: string;
+  name: string;
+  status: 'active' | 'inactive';
+};
 
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const [pages, setPages] = useState<Page[]>([]);
+
+  useEffect(() => {
+    const fetchPages = async () => {
+      try {
+        const res = await api('/api/admin/pages/list');
+        if (res.ok && res.json?.data) {
+          const activePages = (res.json.data as Page[]).filter(p => p.status === 'active');
+          setPages(activePages);
+        }
+      } catch (err) {
+        console.error('Failed to fetch pages for footer:', err);
+      }
+    };
+
+    fetchPages();
+  }, []);
 
   return (
     <footer className="bg-background border-t border-border">
@@ -69,6 +95,13 @@ export const Footer = () => {
                   Contact Us
                 </Link>
               </li>
+              {pages.map((page) => (
+                <li key={page.id}>
+                  <Link to={`/page/${page.slug}`} className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium">
+                    {page.name}
+                  </Link>
+                </li>
+              ))}
               <li>
                 <a href="#shipping" className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium">
                   Shipping Info

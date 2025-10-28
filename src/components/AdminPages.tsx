@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 type Page = {
   id: string;
@@ -42,31 +43,6 @@ const EMPTY_FORM: PageForm = {
   status: 'active',
 };
 
-async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = (typeof window !== 'undefined') ? localStorage.getItem('token') : null;
-  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) } as Record<string, string>;
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const fetchOptions: RequestInit = {
-    ...options,
-    headers,
-    credentials: 'include',
-  };
-
-  try {
-    const res = await fetch(path.startsWith('http') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`, fetchOptions);
-    let body: any = null;
-    try { body = await res.json(); } catch { body = null; }
-    if (!res.ok) {
-      const msg = body?.message || body?.error || `${res.status} ${res.statusText}`;
-      throw new Error(msg);
-    }
-    if (body && typeof body === 'object' && body !== null && 'data' in body) return body.data as T;
-    return body as T;
-  } catch (err: any) {
-    throw new Error(err?.message || String(err || 'Network error'));
-  }
-}
 
 export const AdminPages: React.FC = () => {
   const [pages, setPages] = useState<Page[]>([]);
@@ -80,7 +56,11 @@ export const AdminPages: React.FC = () => {
   const fetchPages = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch<Page[]>('/api/admin/pages/list');
+      const res = await api('/api/admin/pages/list');
+      if (!res.ok) {
+        throw new Error(res.json?.message || res.json?.error || 'Failed to fetch pages');
+      }
+      const data = res.json?.data || [];
       setPages(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error('Failed to fetch pages:', err);
@@ -127,17 +107,26 @@ export const AdminPages: React.FC = () => {
     try {
       setSaving(true);
 
+      let res;
       if (editingPage) {
-        await apiFetch<Page>(`/api/admin/pages/${editingPage.id}`, {
+        res = await api(`/api/admin/pages/${editingPage.id}`, {
           method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(pageForm),
         });
+        if (!res.ok) {
+          throw new Error(res.json?.message || 'Failed to update page');
+        }
         toast.success('Page updated successfully');
       } else {
-        await apiFetch<Page>('/api/admin/pages/create', {
+        res = await api('/api/admin/pages/create', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(pageForm),
         });
+        if (!res.ok) {
+          throw new Error(res.json?.message || 'Failed to create page');
+        }
         toast.success('Page created successfully');
       }
 
@@ -157,7 +146,10 @@ export const AdminPages: React.FC = () => {
     if (!ok) return;
 
     try {
-      await apiFetch(`/api/admin/pages/${page.id}`, { method: 'DELETE' });
+      const res = await api(`/api/admin/pages/${page.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        throw new Error(res.json?.message || 'Failed to delete page');
+      }
       toast.success('Page deleted successfully');
       await fetchPages();
     } catch (error: any) {
