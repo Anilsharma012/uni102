@@ -26,7 +26,7 @@ type PaymentSettings = {
 };
 
 export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
-  const { items, total, placeOrder, clearCart } = useCart();
+  const { items, subtotal, discountAmount, total, appliedCoupon, applyCoupon, removeCoupon, placeOrder, clearCart } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -38,6 +38,9 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
   const [stateName, setStateName] = useState("");
   const [pincode, setPincode] = useState("");
   const [payment, setPayment] = useState<"COD" | "UPI">("COD");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(false);
@@ -104,6 +107,52 @@ export const CheckoutModal: React.FC<Props> = ({ open, setOpen }) => {
       setCopiedUpiId(true);
       setTimeout(() => setCopiedUpiId(false), 2000);
     }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Enter a coupon code");
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError(null);
+
+    try {
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ code: couponCode }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.ok) {
+        applyCoupon({ code: data.data.code, discount: data.data.discount });
+        setCouponCode("");
+        toast({ title: `Coupon applied! ${data.data.discount}% off` });
+      } else {
+        setCouponError(data.message || "Invalid coupon");
+      }
+    } catch (error) {
+      setCouponError("Failed to validate coupon");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponCode("");
+    setCouponError(null);
+    toast({ title: "Coupon removed" });
   };
 
   const fieldBase =
