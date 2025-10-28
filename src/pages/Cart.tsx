@@ -12,10 +12,18 @@ import { CheckoutModal } from "@/components/CheckoutModal";
 const Cart = () => {
   const { items, subtotal, discountAmount, total, appliedCoupon, applyCoupon, removeCoupon, updateQty, removeItem } = useCart();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [openCheckout, setOpenCheckout] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const couponFromUrl = searchParams.get('coupon');
+    if (couponFromUrl && !couponCode && !appliedCoupon) {
+      setCouponCode(couponFromUrl);
+    }
+  }, [searchParams, couponCode, appliedCoupon]);
 
   const handleDecrease = (id: string, qty: number) => {
     if (qty <= 1) return;
