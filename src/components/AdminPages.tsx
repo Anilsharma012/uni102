@@ -157,7 +157,7 @@ export const AdminPages: React.FC = () => {
     if (!ok) return;
 
     try {
-      await apiFetch(`/admin/pages/${page.id}`, { method: 'DELETE' });
+      await apiFetch(`/api/admin/pages/${page.id}`, { method: 'DELETE' });
       toast.success('Page deleted successfully');
       await fetchPages();
     } catch (error: any) {
