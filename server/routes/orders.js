@@ -378,4 +378,232 @@ router.post('/send-mail', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Get invoice for download
+router.get('/:id/invoice', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id).populate('userId');
+    if (!order) return res.status(404).json({ ok: false, message: 'Order not found' });
+
+    // Check authorization
+    if (String(order.userId?._id) !== String(req.user._id) && req.user.role !== 'admin') {
+      return res.status(403).json({ ok: false, message: 'Forbidden' });
+    }
+
+    // Generate a simple HTML invoice that can be printed as PDF
+    const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN');
+    const itemsHtml = order.items
+      .map((item, idx) => `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd;">${idx + 1}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd;">${item.title}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.qty}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.price}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.price * item.qty}</td>
+        </tr>
+      `)
+      .join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Invoice</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #333; margin: 0; padding: 20px; background: #f5f5f5; }
+          .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; }
+          .logo { font-size: 28px; font-weight: bold; color: #333; }
+          .invoice-title { text-align: right; }
+          .invoice-title h2 { margin: 0; font-size: 24px; color: #333; }
+          .invoice-title p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
+          .section { margin-bottom: 30px; }
+          .section-title { font-weight: bold; font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 10px; }
+          .section-content { font-size: 14px; line-height: 1.6; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th { background: #f5f5f5; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd; font-size: 13px; }
+          td { padding: 10px; font-size: 13px; }
+          .summary { margin-left: auto; width: 300px; margin-top: 20px; }
+          .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+          .summary-row.total { border-bottom: 2px solid #333; margin-top: 10px; font-weight: bold; font-size: 16px; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">UNI10</div>
+            <div class="invoice-title">
+              <h2>Invoice</h2>
+              <p>Order #${(id || '').slice(0, 8)}</p>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 60px; margin-bottom: 30px;">
+            <div class="section">
+              <div class="section-title">Bill To</div>
+              <div class="section-content">
+                <strong>${order.name || 'N/A'}</strong><br>
+                ${order.address || ''}<br>
+                ${order.city || ''}, ${order.state || ''} ${order.pincode || ''}<br>
+                Phone: ${order.phone || 'N/A'}<br>
+                Email: ${order.userId?.email || 'N/A'}
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-title">Invoice Details</div>
+              <div class="section-content">
+                <strong>Invoice Date:</strong> ${orderDate}<br>
+                <strong>Order Date:</strong> ${orderDate}<br>
+                <strong>Payment Method:</strong> ${order.paymentMethod || 'N/A'}<br>
+                ${order.upi?.txnId ? `<strong>Transaction ID:</strong> ${order.upi.txnId}<br>` : ''}
+                <strong>Status:</strong> ${order.status || 'Pending'}
+              </div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 5%">#</th>
+                <th style="width: 50%">Item Description</th>
+                <th style="width: 15%; text-align: center;">Qty</th>
+                <th style="width: 15%; text-align: right;">Price</th>
+                <th style="width: 15%; text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div class="summary">
+            <div class="summary-row">
+              <span>Subtotal:</span>
+              <span>₹${order.subtotal || order.total || 0}</span>
+            </div>
+            ${order.discount ? `<div class="summary-row"><span>Discount:</span><span>-₹${order.discount}</span></div>` : ''}
+            ${order.tax ? `<div class="summary-row"><span>Tax:</span><span>₹${order.tax}</span></div>` : ''}
+            ${order.shipping ? `<div class="summary-row"><span>Shipping:</span><span>₹${order.shipping}</span></div>` : ''}
+            <div class="summary-row total">
+              <span>Total Amount:</span>
+              <span>₹${order.total || 0}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>Thank you for your order! If you have any questions, please contact us.</p>
+            <p>© 2024 UNI10. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Return HTML that can be converted to PDF by the client
+    return res.json({
+      ok: true,
+      data: {
+        html,
+        pdfUrl: `data:text/html;charset=UTF-8,${encodeURIComponent(html)}`,
+        orderId: id,
+      },
+    });
+  } catch (e) {
+    console.error('Get invoice error:', e);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
+// List return requests (admin only)
+router.get('/admin/return-requests', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const orders = await Order.find({
+      $or: [
+        { returnStatus: 'Pending' },
+        { returnStatus: 'Approved' },
+        { returnStatus: 'Rejected' },
+      ],
+    })
+      .populate('userId', 'name email')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const returnRequests = orders
+      .filter((o) => o.returnStatus && o.returnStatus !== 'None')
+      .map((o) => ({
+        _id: o._id,
+        orderId: String(o._id).slice(0, 8),
+        userEmail: o.userId?.email || 'N/A',
+        userName: o.userId?.name || 'N/A',
+        reason: o.returnReason || 'No reason provided',
+        status: o.returnStatus,
+        date: o.updatedAt || o.createdAt,
+        items: o.items,
+        total: o.total,
+        order: o,
+      }));
+
+    return res.json({ ok: true, data: returnRequests });
+  } catch (e) {
+    console.error('List return requests error:', e);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
+// Approve return request (admin only)
+router.post('/:id/approve-return', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id).populate('userId');
+    if (!order) return res.status(404).json({ ok: false, message: 'Order not found' });
+
+    if (order.returnStatus !== 'Pending') {
+      return res.status(400).json({ ok: false, message: 'Return request is not pending' });
+    }
+
+    order.returnStatus = 'Approved';
+    await order.save();
+
+    // Send approval email
+    if (order.userId && order.userId.email) {
+      await sendReturnApprovalEmail(order, order.userId, 'Approved');
+    }
+
+    return res.json({ ok: true, data: order, message: 'Return request approved' });
+  } catch (e) {
+    console.error('Approve return error:', e);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
+// Reject return request (admin only)
+router.post('/:id/reject-return', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const order = await Order.findById(id).populate('userId');
+    if (!order) return res.status(404).json({ ok: false, message: 'Order not found' });
+
+    if (order.returnStatus !== 'Pending') {
+      return res.status(400).json({ ok: false, message: 'Return request is not pending' });
+    }
+
+    order.returnStatus = 'Rejected';
+    if (reason) order.rejectionReason = reason;
+    await order.save();
+
+    // Send rejection email
+    if (order.userId && order.userId.email) {
+      await sendReturnApprovalEmail(order, order.userId, 'Rejected', reason);
+    }
+
+    return res.json({ ok: true, data: order, message: 'Return request rejected' });
+  } catch (e) {
+    console.error('Reject return error:', e);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;
