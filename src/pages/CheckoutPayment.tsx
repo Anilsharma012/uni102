@@ -296,23 +296,26 @@ const CheckoutPayment = () => {
           {/* Payment Options */}
           <div className="lg:col-span-2 space-y-6">
             {/* Razorpay Option */}
-            <Card className="p-6 rounded-xl shadow-sm border border-gray-200">
+            <Card className={`p-6 rounded-xl shadow-sm border ${razorpaySettings?.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
               <div className="flex items-center gap-4 mb-6">
                 <div
-                  className="w-5 h-5 rounded-full border-2 cursor-pointer"
-                  onClick={() => setPaymentMethod('razorpay')}
+                  className={`w-5 h-5 rounded-full border-2 ${razorpaySettings?.isActive ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                  onClick={() => razorpaySettings?.isActive && setPaymentMethod('razorpay')}
                   style={{
-                    borderColor: paymentMethod === 'razorpay' ? '#3b82f6' : '#d1d5db',
-                    backgroundColor: paymentMethod === 'razorpay' ? '#3b82f6' : 'transparent',
+                    borderColor: paymentMethod === 'razorpay' && razorpaySettings?.isActive ? '#3b82f6' : '#d1d5db',
+                    backgroundColor: paymentMethod === 'razorpay' && razorpaySettings?.isActive ? '#3b82f6' : 'transparent',
                   }}
                 />
                 <div>
                   <h3 className="font-semibold text-lg">Pay with Razorpay</h3>
                   <p className="text-sm text-muted-foreground">Quick and secure payment</p>
+                  {!razorpaySettings?.isActive && (
+                    <p className="text-xs text-destructive mt-1">Currently unavailable</p>
+                  )}
                 </div>
               </div>
 
-              {paymentMethod === 'razorpay' && (
+              {paymentMethod === 'razorpay' && razorpaySettings?.isActive && (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
                     Click the button below to complete your payment securely using Razorpay.
@@ -333,6 +336,9 @@ const CheckoutPayment = () => {
                     )}
                   </Button>
                 </div>
+              )}
+              {!razorpaySettings?.isActive && (
+                <p className="text-sm text-muted-foreground">Razorpay payment is currently not available. Please use UPI or other available methods.</p>
               )}
             </Card>
 
