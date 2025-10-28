@@ -384,9 +384,30 @@ router.post('/request-return', requireAuth, async (req, res) => {
   try {
     const { orderId, reason, upiId, photoUrl } = req.body || {};
     if (!orderId) return res.status(400).json({ ok: false, message: 'Missing orderId' });
-    req.params.id = orderId;
-    req.body = { reason, upiId, photoUrl };
-    return router.handle(req, res);
+    if (!reason || !reason.trim()) return res.status(400).json({ ok: false, message: 'Return reason is required' });
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ ok: false, message: 'Order not found' });
+
+    if (String(order.userId) !== String(req.user._id)) return res.status(403).json({ ok: false, message: 'Forbidden' });
+
+    const deliveredAt = order.deliveredAt || (order.status === 'delivered' ? order.updatedAt : null);
+    if (!deliveredAt || order.status !== 'delivered') {
+      return res.status(400).json({ ok: false, message: 'Return can only be requested for delivered orders' });
+    }
+    const ms7d = 7 * 24 * 60 * 60 * 1000;
+    if (Date.now() - new Date(deliveredAt).getTime() > ms7d) {
+      return res.status(400).json({ ok: false, message: 'Return period expired.' });
+    }
+
+    order.returnReason = reason.trim();
+    order.refundUpiId = typeof upiId === 'string' ? upiId.trim() : '';
+    order.returnPhoto = typeof photoUrl === 'string' ? photoUrl.trim() : '';
+    order.returnRequestedAt = new Date();
+    order.returnStatus = 'Pending';
+    await order.save();
+
+    return res.json({ ok: true, data: order, message: 'Return request submitted' });
   } catch (e) {
     console.error('Request return (body) error:', e);
     return res.status(500).json({ ok: false, message: 'Failed to submit return request' });
