@@ -24,7 +24,7 @@ export interface Order {
   shipping?: number;
   tax?: number;
   total: number;
-  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'returned' | 'cancelled';
   invoiceId?: string;
   upi?: {
     payerName?: string;
