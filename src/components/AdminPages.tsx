@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 type Page = {
   id: string;
