@@ -37,6 +37,37 @@ const CheckoutPayment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [copiedUpiId, setCopiedUpiId] = useState(false);
 
+  const buildUpiUri = (scheme?: string) => {
+    const pa = encodeURIComponent(paymentSettings?.upiId || '');
+    if (!pa) return '';
+    const pn = encodeURIComponent(paymentSettings?.beneficiaryName || '');
+    const am = encodeURIComponent((total || 0).toFixed(2));
+    const tn = encodeURIComponent('Order payment at UNI10');
+    const base = scheme ? scheme : 'upi://pay';
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}pa=${pa}&pn=${pn}&am=${am}&cu=INR&tn=${tn}`;
+  };
+
+  const openUpiApp = (scheme?: string) => {
+    const uri = buildUpiUri(scheme);
+    if (!uri) {
+      toast({ title: 'UPI not configured', description: 'UPI ID is missing', variant: 'destructive' });
+      return;
+    }
+    const startVisible = document.visibilityState;
+    try {
+      window.location.href = uri;
+    } catch (_) {}
+    if (scheme) {
+      setTimeout(() => {
+        if (document.visibilityState === startVisible) {
+          const fallback = buildUpiUri('upi://pay');
+          try { window.location.href = fallback; } catch (_) {}
+        }
+      }, 1200);
+    }
+  };
+
   useEffect(() => {
     fetchPaymentSettings();
     fetchRazorpaySettings();
@@ -88,6 +119,20 @@ const CheckoutPayment = () => {
       }
 
       setSubmitting(true);
+
+      // Ensure Razorpay SDK is loaded
+      if (!(window as any).Razorpay) {
+        await new Promise<void>((resolve, reject) => {
+          const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+          if (existing) return existing.addEventListener('load', () => resolve());
+          const s = document.createElement('script');
+          s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          s.async = true;
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+          document.body.appendChild(s);
+        });
+      }
 
       const response = await fetch('/api/payment/create-order', {
         method: 'POST',
@@ -381,6 +426,18 @@ const CheckoutPayment = () => {
                         <p className="text-sm text-muted-foreground text-center">
                           {paymentSettings.instructions || 'Scan this QR to pay using any UPI app'}
                         </p>
+
+                        <div className="w-full">
+                          <p className="text-sm font-medium mb-2">Pay using UPI app</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <Button type="button" variant="outline" onClick={() => openUpiApp('tez://upi/pay')} className="w-full">Google Pay</Button>
+                            <Button type="button" variant="outline" onClick={() => openUpiApp('phonepe://upi/pay')} className="w-full">PhonePe</Button>
+                            <Button type="button" variant="outline" onClick={() => openUpiApp('paytmmp://pay')} className="w-full">Paytm</Button>
+                            <Button type="button" variant="outline" onClick={() => openUpiApp('bhim://upi/pay')} className="w-full">BHIM</Button>
+                            <Button type="button" variant="outline" onClick={() => openUpiApp('upi://pay')} className="w-full">Any UPI App</Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">If the app doesn’t open, scan the QR or copy UPI ID below.</p>
+                        </div>
                       </div>
 
                       {paymentSettings.upiId && (
