@@ -208,7 +208,7 @@ const Cart = () => {
                   </div>
                 </div>
 
-                <Button className="w-full" size="lg" onClick={() => setOpenCheckout(true)}>
+                <Button className="w-full" size="lg" onClick={() => navigate('/checkout')}>
                   Proceed to Checkout
                 </Button>
               </Card>
