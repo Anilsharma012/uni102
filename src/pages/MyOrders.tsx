@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
+import { useEffect, useState } from 'react';
 import { Footer } from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Loader2, Package, ArrowRight, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -37,22 +39,39 @@ interface Order {
   total: number;
   status: string;
   createdAt: string;
+  updatedAt?: string;
+  deliveredAt?: string;
   trackingNumber?: string;
   returnReason?: string;
   returnStatus?: string;
+  refundUpiId?: string;
+  returnRequestedAt?: string;
+  returnPhoto?: string;
 }
 
 const MyOrders = () => {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  useEffect(() => {
+    const oid = searchParams.get('orderId') || searchParams.get('order') || undefined;
+    if (oid) {
+      setSelectedOrderId(oid);
+      setReturnDialogOpen(true);
+    }
+  }, [searchParams]);
 
   const fetchOrders = async () => {
     try {
@@ -77,25 +96,30 @@ const MyOrders = () => {
       toast.error('Please provide a reason for return');
       return;
     }
+    if (!upiId.trim()) {
+      toast.error('Please enter a UPI ID for refund');
+      return;
+    }
 
     try {
       setSubmitting(true);
       const { ok, json } = await api(`/api/orders/${selectedOrderId}/request-return`, {
         method: 'POST',
-        body: JSON.stringify({ reason: returnReason.trim() }),
+        body: JSON.stringify({ reason: returnReason.trim(), upiId: upiId.trim(), photoUrl: photoUrl || undefined }),
       });
 
       if (ok) {
         toast.success('Return request submitted successfully!');
         setReturnReason('');
+        setUpiId('');
+        setPhotoUrl('');
         setReturnDialogOpen(false);
         setSelectedOrderId(null);
-        
-        // Update order status in local state
+
         setOrders((prev) =>
           prev.map((order) =>
             order._id === selectedOrderId
-              ? { ...order, returnStatus: 'Pending', returnReason: returnReason.trim() }
+              ? { ...order, returnStatus: 'Pending', returnReason: returnReason.trim(), refundUpiId: upiId.trim(), returnRequestedAt: new Date().toISOString(), returnPhoto: photoUrl }
               : order
           )
         );
@@ -123,6 +147,48 @@ const MyOrders = () => {
     Pending: 'bg-yellow-100 text-yellow-800',
     Approved: 'bg-green-100 text-green-800',
     Rejected: 'bg-red-100 text-red-800',
+  };
+
+  const isReturnWindowActive = (order: Order) => {
+    if (order.status !== 'delivered') return false;
+    const base = order.deliveredAt || order.updatedAt || order.createdAt;
+    const ms7d = 7 * 24 * 60 * 60 * 1000;
+    return Date.now() - new Date(base).getTime() <= ms7d;
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = (e.target.files || [])[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Only JPEG, PNG, and WebP images are allowed');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File too large (max 2MB)');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/uploads/images', {
+        method: 'POST',
+        body: formData,
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data?.ok && data.url) {
+        setPhotoUrl(data.url);
+        toast.success('Photo uploaded');
+      } else {
+        toast.error(data?.message || 'Upload failed');
+      }
+    } catch (err) {
+      toast.error('Upload failed');
+    } finally {
+      setUploading(false);
+      e.currentTarget.value = '';
+    }
   };
 
   if (loading) {
@@ -225,7 +291,7 @@ const MyOrders = () => {
                         </Button>
                       </Link>
 
-                      {order.status === 'delivered' && (!order.returnStatus || order.returnStatus === 'None' || order.returnStatus === 'Rejected') ? (
+                      {isReturnWindowActive(order) && (!order.returnStatus || order.returnStatus === 'None' || order.returnStatus === 'Rejected') ? (
                         <Dialog open={returnDialogOpen} onOpenChange={setReturnDialogOpen}>
                           <DialogTrigger asChild>
                             <Button
@@ -241,7 +307,7 @@ const MyOrders = () => {
                             <DialogHeader>
                               <DialogTitle>Request Return</DialogTitle>
                               <DialogDescription>
-                                Please provide a reason for your return request. Our team will review it and get back to you within 24 hours.
+                                Reason, refund UPI ID, and an optional photo are required for processing.
                               </DialogDescription>
                             </DialogHeader>
 
@@ -261,13 +327,33 @@ const MyOrders = () => {
                                 <Label htmlFor="reason">Reason for Return *</Label>
                                 <Textarea
                                   id="reason"
-                                  placeholder="Please describe why you want to return this order (e.g., Damaged, Wrong item, Size doesn't fit, Changed mind, etc.)"
+                                  placeholder="Please describe why you want to return this order (e.g., Damaged, Wrong item, Size doesn't fit, etc.)"
                                   value={returnReason}
                                   onChange={(e) => setReturnReason(e.target.value)}
                                   rows={4}
                                   disabled={submitting}
                                   className="text-sm"
                                 />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="upi">UPI ID for Refund *</Label>
+                                <Input
+                                  id="upi"
+                                  placeholder="example@upi"
+                                  value={upiId}
+                                  onChange={(e) => setUpiId(e.target.value)}
+                                  disabled={submitting}
+                                  className="text-sm"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="photo">Optional Photo</Label>
+                                <input id="photo" type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading || submitting} />
+                                {photoUrl && (
+                                  <img src={photoUrl} alt="Return evidence" className="w-20 h-20 object-cover border rounded" />
+                                )}
                               </div>
 
                               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2">
@@ -301,6 +387,8 @@ const MyOrders = () => {
                             </div>
                           </DialogContent>
                         </Dialog>
+                      ) : !isReturnWindowActive(order) && order.status === 'delivered' && (!order.returnStatus || order.returnStatus === 'None') ? (
+                        <div className="text-xs text-muted-foreground text-center">Return period expired.</div>
                       ) : order.returnStatus === 'Pending' ? (
                         <Button size="sm" variant="secondary" disabled className="w-full text-xs">
                           Return Pending
