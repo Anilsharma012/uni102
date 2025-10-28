@@ -83,6 +83,7 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/pages', pagesRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/inquiry', inquiryRoutes);
 app.use('/api/coupons', couponsRoutes);
