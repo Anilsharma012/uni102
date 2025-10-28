@@ -25,8 +25,8 @@ router.get('/list', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// Admin: POST /api/admin/pages - Create a new page
-router.post('/admin/create', requireAuth, requireAdmin, async (req, res) => {
+// Admin: POST /api/admin/pages/create - Create a new page
+router.post('/create', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name, slug, content, status } = req.body || {};
 
