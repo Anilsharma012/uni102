@@ -12,6 +12,7 @@ import { CheckoutModal } from "@/components/CheckoutModal";
 const Cart = () => {
   const { items, subtotal, discountAmount, total, appliedCoupon, applyCoupon, removeCoupon, updateQty, removeItem } = useCart();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [openCheckout, setOpenCheckout] = useState(false);
   const [couponCode, setCouponCode] = useState("");
