@@ -3260,6 +3260,8 @@ const handleProductSubmit = async (e: React.FormEvent) => {
         return renderProducts();
       case 'categories':
         return renderCategories();
+      case 'coupons':
+        return renderCoupons();
       case 'orders':
         return renderOrders();
       case 'users':
