@@ -95,6 +95,13 @@ export const Footer = () => {
                   Contact Us
                 </Link>
               </li>
+              {pages.map((page) => (
+                <li key={page.id}>
+                  <Link to={`/page/${page.slug}`} className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium">
+                    {page.name}
+                  </Link>
+                </li>
+              ))}
               <li>
                 <a href="#shipping" className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium">
                   Shipping Info
