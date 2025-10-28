@@ -56,7 +56,11 @@ export const AdminPages: React.FC = () => {
   const fetchPages = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch<Page[]>('/api/admin/pages/list');
+      const res = await api('/api/admin/pages/list');
+      if (!res.ok) {
+        throw new Error(res.json?.message || res.json?.error || 'Failed to fetch pages');
+      }
+      const data = res.json?.data || [];
       setPages(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error('Failed to fetch pages:', err);
