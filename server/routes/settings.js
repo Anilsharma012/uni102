@@ -229,6 +229,15 @@ router.put('/', requireAuth, requireAdmin, async (req, res) => {
       }
     }
 
+    if (body.razorpay && typeof body.razorpay === 'object') {
+      const razorpay = body.razorpay;
+      if (typeof razorpay.keyId === 'string') set['razorpay.keyId'] = razorpay.keyId.trim();
+      if (typeof razorpay.keySecret === 'string') set['razorpay.keySecret'] = razorpay.keySecret.trim();
+      if (typeof razorpay.webhookSecret === 'string') set['razorpay.webhookSecret'] = razorpay.webhookSecret.trim();
+      if (typeof razorpay.currency === 'string') set['razorpay.currency'] = razorpay.currency.trim();
+      if (typeof razorpay.isActive === 'boolean') set['razorpay.isActive'] = razorpay.isActive;
+    }
+
     if (Object.keys(set).length === 0) {
       return res.status(400).json({ ok: false, message: 'No valid fields supplied' });
     }
