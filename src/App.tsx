@@ -66,6 +66,7 @@ const App = () => (
               <Route path="/admin/support" element={<SupportCenter />} />
               <Route path="/admin/orders/:id/invoice" element={<InvoicePage />} />
               <Route path="/account/orders/:id/invoice" element={<InvoicePage />} />
+              <Route path="/page/:slug" element={<PageDetail />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="/contact" element={<Contact />} />
               <Route path="/shipping" element={<HelpCenter />} />
