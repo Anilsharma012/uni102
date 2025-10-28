@@ -1507,6 +1507,66 @@ const handleProductSubmit = async (e: React.FormEvent) => {
     }
   };
 
+  const handleRazorpaySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!razorpayForm.keyId.trim()) {
+      toast.error('Razorpay Key ID is required');
+      return;
+    }
+    if (!razorpayForm.keySecret.trim()) {
+      toast.error('Razorpay Key Secret is required');
+      return;
+    }
+
+    try {
+      setSavingRazorpay(true);
+      const updated = await apiFetch<IntegrationSettings>(ENDPOINTS.settings, {
+        method: 'PUT',
+        body: JSON.stringify({ razorpay: razorpayForm }),
+      });
+      setSettings(normalizeSettings(updated));
+      toast.success('Razorpay settings saved successfully');
+    } catch (error: any) {
+      const errorMsg = error?.message ?? 'Unknown error';
+      console.error('Razorpay settings save error:', error);
+      toast.error(`Failed to save Razorpay settings: ${errorMsg}`);
+    } finally {
+      setSavingRazorpay(false);
+    }
+  };
+
+  const handleRazorpayTest = async () => {
+    if (!razorpayForm.keyId.trim()) {
+      toast.error('Razorpay Key ID is required to test connection');
+      return;
+    }
+    if (!razorpayForm.keySecret.trim()) {
+      toast.error('Razorpay Key Secret is required to test connection');
+      return;
+    }
+
+    try {
+      setTestingRazorpay(true);
+      const result = await apiFetch<{ message: string }>('/api/settings/razorpay/test', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      toast.success(result.message || 'Connection test successful');
+    } catch (error: any) {
+      const errorMsg = error?.message ?? 'Unknown error';
+      console.error('Razorpay test error:', error);
+      toast.error(`Connection test failed: ${errorMsg}`);
+    } finally {
+      setTestingRazorpay(false);
+    }
+  };
+
+  const handleRazorpayReset = () => {
+    setRazorpayForm(createDefaultRazorpaySettings());
+    toast.success('Form reset to defaults');
+  };
+
   const handleShiprocketSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
