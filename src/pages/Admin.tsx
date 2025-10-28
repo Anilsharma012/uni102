@@ -32,6 +32,7 @@ import {
   MessageCircle,
   Megaphone,
   Star,
+  Percent,
 } from 'lucide-react';
 import {
   Dialog,
