@@ -3267,6 +3267,8 @@ const handleProductSubmit = async (e: React.FormEvent) => {
         return renderCategories();
       case 'coupons':
         return renderCoupons();
+      case 'pages':
+        return <AdminPages />;
       case 'orders':
         return renderOrders();
       case 'users':
