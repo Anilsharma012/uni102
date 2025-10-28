@@ -37,6 +37,7 @@ const statuses = [
   "Verified",
   "Shipped",
   "Delivered",
+  "Returned",
   "Cancelled",
 ] as const;
 
@@ -63,7 +64,7 @@ export default function Dashboard() {
   const [showCount, setShowCount] = useState(10);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [openCheckout, setOpenCheckout] = useState(false);
-  const [activeTab, setActiveTab] = useState<"orders" | "cart" | "wishlist">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "returns" | "cart" | "wishlist">("orders");
 
   // Protect route
   useEffect(() => {
@@ -227,6 +228,14 @@ export default function Dashboard() {
                 >
                   Wishlist
                 </button>
+                <button
+                  onClick={() => setActiveTab("returns")}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm ${
+                    activeTab === "returns" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  My Returns
+                </button>
                 <Link
                   to="/account/support"
                   className={`block px-3 py-2 rounded-md text-sm ${location.pathname.startsWith("/account/support") ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground hover:text-foreground"}`}
@@ -389,6 +398,15 @@ export default function Dashboard() {
                                 <Button size="sm" onClick={() => reorder(o)}>
                                   Reorder
                                 </Button>
+                                {(() => {
+                                  const deliveredAt = (o as any).deliveredAt || (o.status === 'delivered' ? (o as any).updatedAt : null);
+                                  const within7 = deliveredAt ? (Date.now() - new Date(deliveredAt).getTime() <= 7*24*60*60*1000) : false;
+                                  return (o.status === 'delivered' && within7) ? (
+                                    <Link to={`/my-orders?orderId=${o._id}`}>
+                                      <Button size="sm" variant="secondary">Return</Button>
+                                    </Link>
+                                  ) : null;
+                                })()}
                               </div>
                             </div>
                           </div>
@@ -459,6 +477,47 @@ export default function Dashboard() {
                   </Link>
                 </div>
                 <div className="text-sm text-muted-foreground">Your wishlist items are available in the Wishlist page.</div>
+              </section>
+            )}
+
+            {activeTab === "returns" && (
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">My Returns</h2>
+                </div>
+                <div className="overflow-x-auto bg-[#f9fafb] p-4 rounded-xl shadow-sm">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-muted-foreground border-b">
+                        <th className="py-2">Product Name</th>
+                        <th className="py-2">Order ID</th>
+                        <th className="py-2">Return Date</th>
+                        <th className="py-2">Status</th>
+                        <th className="py-2">Refund UPI ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.filter((o)=>['Pending','Approved','Rejected'].includes((o as any).returnStatus || 'None')).map((o)=>{
+                        const first = (o.items || [])[0];
+                        const date = (o as any).returnRequestedAt || (o as any).updatedAt || o.createdAt;
+                        return (
+                          <tr key={o._id} className="border-b last:border-b-0">
+                            <td className="py-2">
+                              <div className="flex items-center gap-3">
+                                <img src={first?.image || '/placeholder.svg'} alt={first?.title || 'Product'} className="w-10 h-10 object-cover rounded border" />
+                                <span className="font-medium truncate max-w-[220px]">{first?.title || '-'}</span>
+                              </div>
+                            </td>
+                            <td className="py-2">{(o._id||'').slice(0,8).toUpperCase()}</td>
+                            <td className="py-2">{new Date(date as any).toLocaleDateString()}</td>
+                            <td className="py-2">{(o as any).returnStatus}</td>
+                            <td className="py-2">{(o as any).refundUpiId || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </section>
             )}
           </section>
