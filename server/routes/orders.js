@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const User = require('../models/User');
 const { authOptional, requireAuth, requireAdmin } = require('../middleware/auth');
+const { sendOrderConfirmationEmail, sendStatusUpdateEmail, sendReturnApprovalEmail, sendCustomEmail } = require('../utils/emailService');
 
 const ALLOWED_STATUSES = ['pending', 'paid', 'shipped', 'delivered', 'cancelled'];
 
