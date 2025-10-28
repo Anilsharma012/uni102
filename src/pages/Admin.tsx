@@ -624,6 +624,7 @@ const Admin = () => {
 
   useEffect(() => {
     setPaymentForm({ ...settings.payment });
+    setRazorpayForm({ ...settings.razorpay });
     setShiprocketForm({ ...settings.shipping.shiprocket });
   }, [settings]);
 
