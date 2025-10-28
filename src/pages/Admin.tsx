@@ -666,6 +666,9 @@ const Admin = () => {
     if (activeSection === 'support') {
       navigate('/admin/support');
     }
+    if (activeSection === 'returns') {
+      navigate('/admin/returns');
+    }
     if (activeSection === 'contact') {
       void fetchContactSettings();
     }
