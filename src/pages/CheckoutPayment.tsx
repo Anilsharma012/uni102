@@ -18,6 +18,12 @@ type PaymentSettings = {
   instructions: string;
 };
 
+type RazorpaySettings = {
+  keyId: string;
+  currency: string;
+  isActive: boolean;
+};
+
 const CheckoutPayment = () => {
   const { items, subtotal, discountAmount, total, appliedCoupon, clearCart } = useCart();
   const { toast } = useToast();
@@ -25,6 +31,7 @@ const CheckoutPayment = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('razorpay');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
+  const [razorpaySettings, setRazorpaySettings] = useState<RazorpaySettings | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [upiTransactionId, setUpiTransactionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +39,7 @@ const CheckoutPayment = () => {
 
   useEffect(() => {
     fetchPaymentSettings();
+    fetchRazorpaySettings();
   }, []);
 
   const fetchPaymentSettings = async () => {
@@ -54,6 +62,22 @@ const CheckoutPayment = () => {
       console.error('Failed to fetch payment settings:', error);
     } finally {
       setLoadingSettings(false);
+    }
+  };
+
+  const fetchRazorpaySettings = async () => {
+    try {
+      const { ok, json } = await api('/api/settings/razorpay/public');
+      if (ok && json?.data) {
+        const r = json.data as any;
+        setRazorpaySettings({
+          keyId: r.keyId || '',
+          currency: r.currency || 'INR',
+          isActive: r.isActive || false,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch Razorpay settings:', error);
     }
   };
 
