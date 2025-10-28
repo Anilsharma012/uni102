@@ -109,6 +109,7 @@ const NAV_ITEMS = [
     { id: 'support', label: 'Support Center', icon: MessageCircle },
     { id: 'contact', label: 'Contact Settings', icon: MessageCircle },
     { id: 'payment', label: 'Payment Settings', icon: CreditCard },
+    { id: 'razorpaySettings', label: 'Razorpay Settings', icon: CreditCard },
     { id: 'shiprocket', label: 'Shiprocket Settings', icon: Truck },
 ] as const;
 
