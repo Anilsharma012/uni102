@@ -5,7 +5,7 @@ const User = require('../models/User');
 const { authOptional, requireAuth, requireAdmin } = require('../middleware/auth');
 const { sendOrderConfirmationEmail, sendStatusUpdateEmail, sendReturnApprovalEmail, sendCustomEmail } = require('../utils/emailService');
 
-const ALLOWED_STATUSES = ['pending', 'paid', 'shipped', 'delivered', 'cancelled'];
+const ALLOWED_STATUSES = ['pending', 'paid', 'shipped', 'delivered', 'returned', 'cancelled'];
 
 // Create order
 router.post('/', authOptional, async (req, res) => {
@@ -260,7 +260,7 @@ router.post('/:id/email', requireAuth, async (req, res) => {
 router.post('/:id/request-return', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body || {};
+    const { reason, upiId, photoUrl } = req.body || {};
 
     if (!reason || !reason.trim()) {
       return res.status(400).json({ ok: false, message: 'Return reason is required' });
@@ -276,12 +276,20 @@ router.post('/:id/request-return', requireAuth, async (req, res) => {
       return res.status(403).json({ ok: false, message: 'Forbidden' });
     }
 
-    // Can only request return if order is delivered
-    if (order.status !== 'delivered') {
+    // Must be delivered and within 7 days of delivery
+    const deliveredAt = order.deliveredAt || (order.status === 'delivered' ? order.updatedAt : null);
+    if (!deliveredAt || order.status !== 'delivered') {
       return res.status(400).json({ ok: false, message: 'Return can only be requested for delivered orders' });
+    }
+    const ms7d = 7 * 24 * 60 * 60 * 1000;
+    if (Date.now() - new Date(deliveredAt).getTime() > ms7d) {
+      return res.status(400).json({ ok: false, message: 'Return period expired.' });
     }
 
     order.returnReason = reason.trim();
+    order.refundUpiId = typeof upiId === 'string' ? upiId.trim() : '';
+    order.returnPhoto = typeof photoUrl === 'string' ? photoUrl.trim() : '';
+    order.returnRequestedAt = new Date();
     order.returnStatus = 'Pending';
     await order.save();
 
@@ -308,6 +316,9 @@ router.put('/:id/admin-update', requireAuth, requireAdmin, async (req, res) => {
     // Update status if provided
     if (status && ALLOWED_STATUSES.includes(status)) {
       order.status = status;
+      if (status === 'delivered') {
+        order.deliveredAt = new Date();
+      }
     }
 
     // Update tracking number if provided
@@ -318,6 +329,9 @@ router.put('/:id/admin-update', requireAuth, requireAdmin, async (req, res) => {
     // Update return status if provided
     if (returnStatus && ['None', 'Pending', 'Approved', 'Rejected'].includes(returnStatus)) {
       order.returnStatus = returnStatus;
+      if (returnStatus === 'Approved') {
+        order.status = 'returned';
+      }
     }
 
     await order.save();
@@ -362,6 +376,47 @@ router.post('/send-mail', requireAuth, requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('Send mail error:', e);
     return res.status(500).json({ ok: false, message: 'Failed to send email' });
+  }
+});
+
+// Alternate: request return by body (matches spec)
+router.post('/request-return', requireAuth, async (req, res) => {
+  try {
+    const { orderId, reason, upiId, photoUrl } = req.body || {};
+    if (!orderId) return res.status(400).json({ ok: false, message: 'Missing orderId' });
+    req.params.id = orderId;
+    req.body = { reason, upiId, photoUrl };
+    return router.handle(req, res);
+  } catch (e) {
+    console.error('Request return (body) error:', e);
+    return res.status(500).json({ ok: false, message: 'Failed to submit return request' });
+  }
+});
+
+// Admin: list return requests
+router.get('/returns', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const docs = await Order.find({ returnStatus: { $in: ['Pending', 'Approved', 'Rejected'] } })
+      .populate('userId')
+      .sort({ createdAt: -1 })
+      .lean();
+    return res.json({ ok: true, data: docs });
+  } catch (e) {
+    console.error('List returns error:', e);
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
+// User: list my return requests
+router.get('/mine-returns', requireAuth, async (req, res) => {
+  try {
+    const docs = await Order.find({ userId: req.user._id, returnStatus: { $in: ['Pending', 'Approved', 'Rejected'] } })
+      .sort({ createdAt: -1 })
+      .lean();
+    return res.json({ ok: true, data: docs });
+  } catch (e) {
+    console.error('List my returns error:', e);
+    return res.status(500).json({ ok: false, message: 'Server error' });
   }
 });
 
