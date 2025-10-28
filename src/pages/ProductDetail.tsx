@@ -290,6 +290,12 @@ const ProductDetail = () => {
             </div>
             <p className="text-muted-foreground mb-8">{product.description}</p>
 
+            <AvailableCoupons
+              onUseNow={(code) => {
+                navigate(`/cart?coupon=${encodeURIComponent(code)}`);
+              }}
+            />
+
             {/* Per-size inventory display */}
             {product?.trackInventoryBySize && Array.isArray(product?.sizeInventory) && product.sizeInventory.length > 0 && (
               <div className="mb-6">
