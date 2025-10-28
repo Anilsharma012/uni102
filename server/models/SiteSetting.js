@@ -10,6 +10,17 @@ const PaymentSettingsSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const RazorpaySettingsSchema = new mongoose.Schema(
+  {
+    keyId: { type: String, default: '' },
+    keySecret: { type: String, default: '' },
+    webhookSecret: { type: String, default: '' },
+    currency: { type: String, default: 'INR' },
+    isActive: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
 const ShiprocketSettingsSchema = new mongoose.Schema(
   {
     enabled: { type: Boolean, default: true },
