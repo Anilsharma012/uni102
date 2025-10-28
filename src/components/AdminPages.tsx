@@ -128,13 +128,13 @@ export const AdminPages: React.FC = () => {
       setSaving(true);
 
       if (editingPage) {
-        await apiFetch<Page>(`/admin/pages/admin/${editingPage.id}`, {
+        await apiFetch<Page>(`/admin/pages/${editingPage.id}`, {
           method: 'PATCH',
           body: JSON.stringify(pageForm),
         });
         toast.success('Page updated successfully');
       } else {
-        await apiFetch<Page>('/admin/pages/admin/create', {
+        await apiFetch<Page>('/admin/pages/create', {
           method: 'POST',
           body: JSON.stringify(pageForm),
         });
