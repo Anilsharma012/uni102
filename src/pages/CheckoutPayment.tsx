@@ -31,7 +31,11 @@ const CheckoutPayment = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('razorpay');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
-  const [razorpaySettings, setRazorpaySettings] = useState<RazorpaySettings | null>(null);
+  const [razorpaySettings, setRazorpaySettings] = useState<RazorpaySettings>({
+    keyId: '',
+    currency: 'INR',
+    isActive: false,
+  });
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [upiTransactionId, setUpiTransactionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
