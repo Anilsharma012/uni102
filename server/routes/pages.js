@@ -126,7 +126,7 @@ router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Admin: DELETE /api/admin/pages/:id - Delete a page
-router.delete('/admin/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const page = await Page.findByIdAndDelete(id);
