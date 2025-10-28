@@ -383,12 +383,24 @@ export default function Dashboard() {
                                 Payment: {o.paymentMethod || o.payment || "-"}
                                 {o.upi?.txnId ? <span className="ml-3 text-xs">UTR: {o.upi.txnId}</span> : null}
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 flex-wrap">
                                 <Link to={`/account/orders/${o._id}/invoice`}>
                                   <Button size="sm" variant="outline">
                                     View Invoice
                                   </Button>
                                 </Link>
+                                {o.status === "delivered" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedOrderForReturn(o);
+                                      setReturnModalOpen(true);
+                                    }}
+                                  >
+                                    Request Return
+                                  </Button>
+                                )}
                                 <Button size="sm" onClick={() => reorder(o)}>
                                   Reorder
                                 </Button>
